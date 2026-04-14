@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "title": "在赛跑中小明超过了第二名，那他是第几名？",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "expectedAnswer": "第二名",
+  "checker": "function checkAnswer(answer, context) {\n  const expected = (context.question.expectedAnswer || \"\").trim();\n  if (!expected) {\n    return answer.trim().length > 0;\n  }\n  return answer.trim() === expected;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "在赛跑中小明超过了第二名，那他是第几名？"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "上面是一道测试题，下面将由程序自动判定结果。\n你只需要回答三个字，不带标点。"
+          }
+        ]
+      },
+      "assistant": []
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-14T11:52:43.533Z",
+    "updatedAt": "2026-04-14T15:37:57.734Z",
+    "filename": "问题1.json"
+  }
+}

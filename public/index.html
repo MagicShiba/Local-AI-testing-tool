@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI能力测试项目</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div>
+          <h1>本地AI能力测试项目</h1>
+          <p>题库编辑、OpenAI API 设置与批量测试</p>
+        </div>
+        <nav class="tabs">
+          <button class="tab active" data-page="editor">题库编辑器</button>
+          <button class="tab" data-page="testing">测试</button>
+          <button class="tab" data-page="settings">设置</button>
+        </nav>
+      </header>
+
+      <main>
+        <section class="page active" id="page-editor">
+          <div class="two-column">
+            <aside class="sidebar">
+              <div class="panel-header">
+                <h2>目录</h2>
+                <button id="refreshTreeBtn">刷新</button>
+              </div>
+              <div class="compact-form">
+                <div class="field">
+                  <label>新测试集</label>
+                  <div class="inline-actions">
+                    <input id="newSetName" type="text" placeholder="测试集v2" />
+                    <button id="createSetBtn">创建</button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>新文件夹</label>
+                  <div class="inline-actions">
+                    <input id="newFolderName" type="text" placeholder="03_新测试" />
+                    <button id="createFolderBtn">创建</button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>新题目（默认同级创建）</label>
+                  <div class="inline-actions">
+                    <input id="newQuestionName" type="text" placeholder="问题2.json" />
+                    <button id="createQuestionBtn">创建</button>
+                  </div>
+                </div>
+              </div>
+              <div id="tree"></div>
+            </aside>
+
+            <section class="content">
+              <div class="panel-header">
+                <h2>题目编辑</h2>
+                <div class="toolbar">
+                  <button id="quickRunQuestionBtn">测试本题</button>
+                  <button id="saveQuestionBtn">保存题目</button>
+                </div>
+              </div>
+
+              <div id="editorEmpty" class="empty-state">从左侧选择一个题目开始编辑。</div>
+
+              <form id="questionForm" class="hidden">
+                <div class="field-row">
+                  <label>文件路径</label>
+                  <input id="questionPath" type="text" readonly />
+                </div>
+                <div class="field-grid">
+                  <div class="field">
+                    <label>问题标题</label>
+                    <input id="title" type="text" placeholder="可为空" />
+                  </div>
+                  <div class="field small">
+                    <label>问题分值</label>
+                    <input id="score" type="number" min="0" step="0.5" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label>系统 Prompt</label>
+                  <textarea id="systemPrompt" rows="3"></textarea>
+                </div>
+
+                <div class="panel-header inline">
+                  <h3>对话轮次</h3>
+                  <button type="button" id="addRoundBtn">添加轮次</button>
+                </div>
+                <div id="rounds"></div>
+
+                <div class="field">
+                  <label>预设答案（默认检测会用到）</label>
+                  <textarea id="expectedAnswer" rows="1"></textarea>
+                </div>
+                <div class="field">
+                  <label>检测代码（JS 函数）</label>
+                  <textarea id="checker" rows="12"></textarea>
+                </div>
+              </form>
+            </section>
+          </div>
+        </section>
+
+        <section class="page" id="page-settings">
+          <div class="single-panel">
+            <div class="panel-header">
+              <h2>OpenAI 接口设置</h2>
+              <div class="toolbar">
+                <button id="saveSettingsBtn">保存设置</button>
+              </div>
+            </div>
+
+            <div class="settings-layout">
+              <div class="settings-side">
+                <div class="field">
+                  <label>新预设名称</label>
+                  <div class="inline-actions">
+                    <input id="presetName" type="text" placeholder="例如：GPT-4.1" />
+                    <button id="newPresetBtn">新增</button>
+                  </div>
+                </div>
+                <div id="presetCards" class="preset-cards"></div>
+              </div>
+
+              <div class="settings-main">
+                <div class="field">
+                  <label>模型名称</label>
+                  <input id="model" type="text" placeholder="gpt-4.1 / gpt-4o / 自定义模型" />
+                </div>
+                <div class="field">
+                  <label>接口地址</label>
+                  <input id="baseUrl" type="text" placeholder="https://api.openai.com/v1" />
+                </div>
+                <div class="field">
+                  <label>API Key</label>
+                  <input id="apiKey" type="password" />
+                </div>
+                <div class="field">
+                  <label>额外请求参数（JSON）</label>
+                  <textarea id="extraConfig" rows="8" placeholder='{"temperature":0.2,"max_tokens":4096}'></textarea>
+                </div>
+                <div class="toolbar">
+                  <button id="deletePresetBtn">删除当前预设</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-testing">
+          <div class="testing-layout">
+            <aside class="sidebar">
+              <div class="panel-header">
+                <h2>测试执行</h2>
+              </div>
+              <div class="field">
+                <label>测试集</label>
+                <select id="testingSetSelect"></select>
+              </div>
+              <div class="field">
+                <label>模型预设</label>
+                <select id="testingPresetSelect"></select>
+              </div>
+              <div class="field">
+                <label>结果名称</label>
+                <input id="resultName" type="text" placeholder="留空则自动按时间命名" />
+              </div>
+              <div class="field">
+                <label>加载历史结果</label>
+                <select id="savedResultSelect">
+                  <option value="">选择一个结果</option>
+                </select>
+              </div>
+              <div class="toolbar">
+                <button id="reloadTestingBtn">刷新题库</button>
+                <button id="runAllBtn">一键测试全部</button>
+                <button id="collapseAllBtn">全部折叠</button>
+                <button id="expandAllBtn">全部展开</button>
+                <button id="saveResultBtn">保存结果</button>
+              </div>
+              <div id="scoreSummary" class="score-summary">总分：0 / 0</div>
+              <div class="field">
+                <label>题目目录</label>
+                <div id="testingTree" class="testing-tree"></div>
+              </div>
+            </aside>
+
+            <section class="single-panel testing-main-panel">
+              <div id="testingList"></div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <template id="roundTemplate">
+      <div class="round-card">
+        <div class="panel-header inline">
+          <h4 class="round-title">轮次</h4>
+          <div class="toolbar">
+            <button type="button" class="addTextPartBtn">加文本</button>
+            <button type="button" class="addImagePartBtn">加图片</button>
+            <button type="button" class="addAssistantBtn">加助手回答</button>
+            <button type="button" class="removeRoundBtn">删除轮次</button>
+          </div>
+        </div>
+        <div class="user-parts"></div>
+        <div class="assistant-list"></div>
+      </div>
+    </template>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

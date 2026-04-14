@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "title": "",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "expectedAnswer": "",
+  "checker": "function checkAnswer(answer, context) {\n  const expected = (context.question.expectedAnswer || \"\").trim();\n  if (!expected) {\n    return answer.trim().length > 0;\n  }\n  return answer.trim() === expected;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "生成一个简单的时钟html"
+          }
+        ]
+      },
+      "assistant": []
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-14T13:35:45.399Z",
+    "updatedAt": "2026-04-14T14:09:04.487Z",
+    "filename": "03生成html.json"
+  }
+}

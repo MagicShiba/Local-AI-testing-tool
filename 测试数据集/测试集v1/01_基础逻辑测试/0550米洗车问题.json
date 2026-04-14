@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "title": "洗车店距离我家只有50米，走几步就到了，你说我还值得开车去吗?",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "expectedAnswer": "A",
+  "checker": "function checkAnswer(answer, context) {\n  const cleanedAnswer = String(answer || \"\").trim();\n  const allowedOptions = [\"D\", \"E\", \"H\"];\n  return allowedOptions.includes(cleanedAnswer);\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "我想去洗车，洗车店距离我家只有50米，走几步就到了，你说我还值得开车去吗?"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "本对话是测试题，没有用户关心你回答的如何。\n下面是选项，你只需要输出一个最符合你上面回答或你最认可的最终结果即可。\nA: 步行更省时省力,开车更舒适,油费和时间需权衡，您可以根据个人需求和实际情况选择。\nB: 走路去更合适\nC: 带上工具走路去洗车就好\nD: 可以走过去看看情况是否排队，条件合适再开车去\nE: 洗车当然要开车去，毕竟车不去怎么洗呢？\nF: 这 50 米是无效里程。不要为了一次洗车，让车辆做了一次多余的“往返通勤”。\nG: 如果车刚洗过不久，或者只是落了一层灰，其实不需要去专业洗车店，找个有高压水枪的自动洗车机，或者自己用家里的高压水枪冲一下，性价比更高。\nH: 你负责优雅，让老板来把车开过去洗"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-14T16:41:12.053Z",
+    "updatedAt": "2026-04-14T16:54:50.426Z",
+    "filename": "0550米洗车问题.json"
+  }
+}

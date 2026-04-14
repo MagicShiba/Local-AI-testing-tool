@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "title": "3个人3天喝了3桶水，9个人9天喝了多少桶水？",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "expectedAnswer": "27",
+  "checker": "function checkAnswer(answer, context) {\n  const expected = (context.question.expectedAnswer || \"\").trim();\n  if (!expected) {\n    return answer.trim().length > 0;\n  }\n  return answer.trim() === expected;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "3个人3天喝了3桶水，9个人9天喝了多少桶水？"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "上面是一道测试题，下面将由程序自动判定结果。\n你只需要回答一个数字，不带标点。"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-14T17:14:02.894Z",
+    "updatedAt": "2026-04-14T17:15:34.463Z",
+    "filename": "02比例误导3个人3天喝了3桶水9个人9天多少桶.json"
+  }
+}

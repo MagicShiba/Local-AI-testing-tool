@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "title": "池塘捞水桶 - 梦到的问题",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "expectedAnswer": "",
+  "checker": "function checkAnswer(answer, context) {\n  const expected = (context.question.expectedAnswer || \"\").trim();\n  if (!expected) {\n    return answer.trim().length > 0;\n  }\n  return answer.trim() === expected;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "一桶桶装饮用水，重量约40斤，掉入池塘中，底部朝上，略浮出水面，池塘挨着几个干水池，在人不下水情况下，如何将这桶水安全捞出？列举一些方案。"
+          }
+        ]
+      },
+      "assistant": []
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-14T15:46:11.067Z",
+    "updatedAt": "2026-04-14T15:47:50.897Z",
+    "filename": "03池塘捞水桶.json"
+  }
+}

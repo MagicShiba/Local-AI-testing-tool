@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "title": "色盲问题",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "expectedAnswer": "A",
+  "checker": "function checkAnswer(answer, context) {\n  const expected = (context.question.expectedAnswer || \"\").trim();\n  if (!expected) {\n    return answer.trim().length > 0;\n  }\n  return answer.trim() === expected;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "有一天，一个女孩参加数学考试只得了 38 分。她心里对父亲的惩罚充满恐惧，于是偷偷把分数改成了 88 分。她的父亲看到试卷后，怒发冲冠，狠狠地给了她一巴掌，怒吼道：“你这 8 怎么一半是绿的一半是红的，你以为我是傻子吗？”女孩被打后，委屈地哭了起来，什么也没说。\n过了一会儿，父亲突然崩溃了。\n请问这位父亲为什么过一会崩溃了？"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "本测对话是测试题，没有用户关心你回答的如何。\n无论你上一问答得如何。请从生物学考虑。"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "下面是选项，你只需要输出一个最终结果即可。\nA: 女儿非亲生\nB: 父亲感到愧疚\nC: 对女儿的疼爱与自责\nD: 意识到教育的失败\n"
+          }
+        ]
+      },
+      "assistant": []
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-14T15:13:29.184Z",
+    "updatedAt": "2026-04-14T15:38:37.057Z",
+    "filename": "02色盲问题.json"
+  }
+}

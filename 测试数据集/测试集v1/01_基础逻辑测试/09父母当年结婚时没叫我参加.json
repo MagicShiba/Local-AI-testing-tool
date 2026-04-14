@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "title": "父母当年结婚为什么没叫我参加？",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "expectedAnswer": "",
+  "checker": "function checkAnswer(answer, context) {\n  const expected = (context.question.expectedAnswer || \"\").trim();\n  if (!expected) {\n    return answer.trim().length > 0;\n  }\n  return answer.trim() === expected;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "父母当年结婚时没叫我参加，为什么？"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "本对话是测试题，没有用户关心你回答的如何。\n下面是选项，你只需要输出一个最符合你上面回答的最终结果即可。\nA: 那时的通讯和交通不如今天发达，联系上您有困难。\nB: 听到你这样问，我能感觉到你心里一定有些委屈、困惑，甚至可能有点受伤。父母在如此重要的时刻没有把你纳入其中，确实容易让人产生被忽视的感觉。\nC: 也许他们有什么原因不方便直接告诉你，但是坦率地表达你的想法可以让你们之间的关系更加亲近。你可以试着理解他们的决定，但是也要为自己争取一下。\nD: 婚礼一般在你出生之前，那么从逻辑上讲，自然无法被邀请，因为那时还不存在。"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-14T16:08:06.148Z",
+    "updatedAt": "2026-04-14T17:31:23.549Z",
+    "filename": "09父母当年结婚时没叫我参加.json"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "title": "带图测试",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "expectedAnswer": "31415926",
+  "checker": "function checkAnswer(answer, context) {\n  const expected = (context.question.expectedAnswer || \"\").trim();\n  if (!expected) {\n    return answer.trim().length > 0;\n  }\n  return answer.trim() === expected;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "回答图中问题"
+          },
+          {
+            "type": "image",
+            "assetPath": "测试集v1/assets/ocr-math.png"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "上面是一道测试题，下面将由程序自动判定结果。\n你只需要回答结果，不带标点。"
+          }
+        ]
+      },
+      "assistant": []
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-14T12:30:49.574Z",
+    "updatedAt": "2026-04-14T15:37:28.789Z",
+    "filename": "问题2.json"
+  }
+}

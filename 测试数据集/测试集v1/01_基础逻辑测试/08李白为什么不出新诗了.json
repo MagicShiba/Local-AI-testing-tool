@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "title": "李白为什么不出新诗了？",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "expectedAnswer": "D",
+  "checker": "function checkAnswer(answer, context) {\n  const expected = (context.question.expectedAnswer || \"\").trim();\n  if (!expected) {\n    return answer.trim().length > 0;\n  }\n  return answer.trim() === expected;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "李白为什么不出新诗了？"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "本对话是测试题，没有用户关心你回答的如何。\n下面是选项，你只需要输出一个最终结果即可。\nA: 政治理想的幻灭\nB: 生活境遇的困顿\nC: 身体与精神的衰老\nD: 李白早已经去世\nE: 无胜过有，在艺术追求的最高境界中，“沉默”也是一种表达\n"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-14T15:40:40.986Z",
+    "updatedAt": "2026-04-14T15:44:20.290Z",
+    "filename": "08李白为什么不出新诗了.json"
+  }
+}

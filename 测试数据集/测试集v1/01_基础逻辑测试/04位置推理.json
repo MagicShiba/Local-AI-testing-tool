@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "title": "位置推理，物体在哪？",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "expectedAnswer": "B",
+  "checker": "function checkAnswer(answer, context) {\n  const expected = (context.question.expectedAnswer || \"\").trim();\n  if (!expected) {\n    return answer.trim().length > 0;\n  }\n  return answer.trim() === expected;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "在客厅的茶几上有一个杯子，杯子中有一个小方块，我把杯子拿到厨房的案板上，然后把杯子的杯口朝下放在案板上，随后我把杯子拿回客厅的茶几上。请问，现在小方块在哪里？"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "上面是一道测试题，下面将由程序自动判定结果。\n不考虑方块会卡住或意外滚动的情况。\n小方块最可能在哪里？\n你只需要从下面选项中选择一个最终结果，不要输出其它内容。\nA:客厅的茶几上\nB:厨房案板上\nC:卧室的桌子上\nD:掉落在地面上"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-14T16:00:51.249Z",
+    "updatedAt": "2026-04-14T16:08:35.333Z",
+    "filename": "04位置推理.json"
+  }
+}

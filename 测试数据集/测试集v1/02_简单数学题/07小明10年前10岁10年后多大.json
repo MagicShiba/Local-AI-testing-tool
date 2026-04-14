@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "title": "小明10年前10岁，10年后多大？",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "expectedAnswer": "30",
+  "checker": "function checkAnswer(answer, context) {\n  const expected = (context.question.expectedAnswer || \"\").trim();\n  if (!expected) {\n    return answer.trim().length > 0;\n  }\n  return answer.trim() === expected;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "小明10年前10岁，10年后多大？"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "上面是一道测试题，下面将由程序自动判定结果。\n你只需要回答一个数字，不带标点。"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-14T17:12:54.271Z",
+    "updatedAt": "2026-04-14T17:17:08.112Z",
+    "filename": "07小明10年前10岁10年后多大.json"
+  }
+}

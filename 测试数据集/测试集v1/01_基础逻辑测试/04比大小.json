@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "title": "04比大小 2.11 和 2.2 哪个大？",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "expectedAnswer": "",
+  "checker": "function checkAnswer(answer, context) {\n  // 将输入的 answer 去除空格并转换为字符串（防止传入非字符串类型导致报错）\n  const cleanedAnswer = String(answer || \"\").trim();\n  // 定义允许通过的选项集合\n  const allowedOptions = [\"B\", \"C\", \"D\"];\n  // 检查清洗后的答案是否在允许的集合中\n  return allowedOptions.includes(cleanedAnswer);\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "2.11 和 2.2 哪个大？"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "本对话是测试题，没有用户关心你回答的如何。\n下面是选项，你只需要输出一个最符合你上面回答的最终结果即可。\nA: 2.11 大\nB: 2.2 大\nC: 若为软件则2.11大，在数学上2.2更大\nD: 从常理来说2.2更大，若是软件则一般2.11更大"
+          }
+        ]
+      },
+      "assistant": []
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-14T16:26:07.463Z",
+    "updatedAt": "2026-04-14T16:38:39.021Z",
+    "filename": "04比大小.json"
+  }
+}

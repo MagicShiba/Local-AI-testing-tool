@@ -1,0 +1,19 @@
+{
+  "activePresetId": "preset-1776167615097",
+  "presets": [
+    {
+      "id": "default",
+      "name": "默认预设",
+      "baseUrl": "https://api.openai.com/v1",
+      "model": "",
+      "apiKey": ""
+    },
+    {
+      "id": "preset-1776167615097",
+      "name": "自动选择",
+      "baseUrl": "http://127.0.0.1:1234/v1",
+      "model": "any",
+      "apiKey": "123"
+    }
+  ]
+}

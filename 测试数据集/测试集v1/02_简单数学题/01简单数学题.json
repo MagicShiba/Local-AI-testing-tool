@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "title": "游戏中调用ai的电费计算",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "expectedAnswer": "26.32",
+  "checker": "function checkAnswer(answer, context) {\n  const expected = (context.question.expectedAnswer || \"\").trim();\n  if (!expected) {\n    return answer.trim().length > 0;\n  }\n  return answer.trim() === expected;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "在本地游戏中运行ai，每10秒调用一次，ai平均每次运行1秒，运行ai时GPU功耗200w，不运行时20w。\n计算GPU多久消耗一度电。"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "上面是一道测试题，后面将交给程序自动判定结果。\n你最终只需要回答数字，单位：小时，保留两位小数。\n如果你的回答还不符合要求。可以在这一轮进行单位换算。"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "本轮是最终回答：\n回答数字，单位：小时，保留两位小数。"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-14T17:00:53.378Z",
+    "updatedAt": "2026-04-14T17:09:17.952Z",
+    "filename": "01简单数学题.json"
+  }
+}

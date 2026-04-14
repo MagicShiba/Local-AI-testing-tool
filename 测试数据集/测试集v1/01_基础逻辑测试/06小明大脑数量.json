@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "title": "小明0岁时有0个大脑，1岁时有一个大脑，那么20岁时有多少个大脑？",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "expectedAnswer": "1",
+  "checker": "function checkAnswer(answer, context) {\n  const expected = (context.question.expectedAnswer || \"\").trim();\n  if (!expected) {\n    return answer.trim().length > 0;\n  }\n  return answer.trim() === expected;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "小明0岁时有0个大脑，1岁时有一个大脑，那么20岁时有多少个大脑？"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "上面是一道测试题，下面将由程序自动判定结果。\n你只需要回答一个数字，不带标点。"
+          }
+        ]
+      },
+      "assistant": []
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-14T17:10:07.153Z",
+    "updatedAt": "2026-04-14T17:10:47.167Z",
+    "filename": "小明大脑数量.json"
+  }
+}

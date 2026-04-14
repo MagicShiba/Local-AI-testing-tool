@@ -1,0 +1,767 @@
+const state = {
+  tree: { sets: [] },
+  selectedQuestionPath: "",
+  currentQuestion: null,
+  settings: { presets: [], activePresetId: "" },
+  testingSet: "",
+  testingPresetId: "",
+  testingItems: [],
+  testingSelectedPath: "",
+};
+
+const els = {
+  tabs: [...document.querySelectorAll(".tab")],
+  pages: [...document.querySelectorAll(".page")],
+  tree: document.getElementById("tree"),
+  editorEmpty: document.getElementById("editorEmpty"),
+  questionForm: document.getElementById("questionForm"),
+  saveQuestionBtn: document.getElementById("saveQuestionBtn"),
+  quickRunQuestionBtn: document.getElementById("quickRunQuestionBtn"),
+  questionPath: document.getElementById("questionPath"),
+  title: document.getElementById("title"),
+  score: document.getElementById("score"),
+  systemPrompt: document.getElementById("systemPrompt"),
+  rounds: document.getElementById("rounds"),
+  expectedAnswer: document.getElementById("expectedAnswer"),
+  checker: document.getElementById("checker"),
+  newSetName: document.getElementById("newSetName"),
+  newFolderName: document.getElementById("newFolderName"),
+  newQuestionName: document.getElementById("newQuestionName"),
+  presetName: document.getElementById("presetName"),
+  baseUrl: document.getElementById("baseUrl"),
+  model: document.getElementById("model"),
+  apiKey: document.getElementById("apiKey"),
+  extraConfig: document.getElementById("extraConfig"),
+  presetCards: document.getElementById("presetCards"),
+  testingSetSelect: document.getElementById("testingSetSelect"),
+  testingPresetSelect: document.getElementById("testingPresetSelect"),
+  testingList: document.getElementById("testingList"),
+  scoreSummary: document.getElementById("scoreSummary"),
+  savedResultSelect: document.getElementById("savedResultSelect"),
+  resultName: document.getElementById("resultName"),
+  testingTree: document.getElementById("testingTree"),
+};
+
+document.addEventListener("DOMContentLoaded", init);
+
+async function init() {
+  bindEvents();
+  await Promise.all([loadTree(), loadSettings(), loadResults()]);
+  syncTestingSelectors();
+}
+
+function bindEvents() {
+  els.tabs.forEach((tab) => tab.addEventListener("click", () => switchPage(tab.dataset.page)));
+  document.getElementById("refreshTreeBtn").addEventListener("click", loadTree);
+  document.getElementById("createSetBtn").addEventListener("click", createSet);
+  document.getElementById("createFolderBtn").addEventListener("click", createFolder);
+  document.getElementById("createQuestionBtn").addEventListener("click", createQuestion);
+  document.getElementById("addRoundBtn").addEventListener("click", () => addRound());
+  els.saveQuestionBtn.addEventListener("click", saveQuestion);
+  els.quickRunQuestionBtn.addEventListener("click", quickRunCurrentQuestion);
+  document.getElementById("newPresetBtn").addEventListener("click", createPreset);
+  document.getElementById("deletePresetBtn").addEventListener("click", deletePreset);
+  document.getElementById("saveSettingsBtn").addEventListener("click", saveSettings);
+  document.getElementById("reloadTestingBtn").addEventListener("click", async () => {
+    await loadTree();
+    renderTestingList();
+  });
+  document.getElementById("runAllBtn").addEventListener("click", runAllTests);
+  document.getElementById("collapseAllBtn").addEventListener("click", () => toggleAllTests(false));
+  document.getElementById("expandAllBtn").addEventListener("click", () => toggleAllTests(true));
+  document.getElementById("saveResultBtn").addEventListener("click", saveResult);
+  els.testingSetSelect.addEventListener("change", () => {
+    state.testingSet = els.testingSetSelect.value;
+    state.testingSelectedPath = "";
+    renderTestingList();
+  });
+  els.testingPresetSelect.addEventListener("change", () => {
+    state.testingPresetId = els.testingPresetSelect.value;
+  });
+  els.savedResultSelect.addEventListener("change", loadSelectedResult);
+}
+
+function switchPage(page) {
+  els.tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.page === page));
+  els.pages.forEach((section) => section.classList.toggle("active", section.id === `page-${page}`));
+}
+
+async function api(path, options = {}) {
+  const response = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "请求失败");
+  return data;
+}
+
+async function loadTree() {
+  state.tree = await api("/api/tree");
+  renderTree();
+  syncTestingSelectors();
+}
+
+function renderTree() {
+  els.tree.innerHTML = "";
+  state.tree.sets.forEach((set) => {
+    const setEl = document.createElement("div");
+    setEl.className = "tree-set";
+    setEl.innerHTML = `<strong>${escapeHtml(set.name)}</strong>`;
+    set.folders.forEach((folder) => {
+      const folderEl = document.createElement("div");
+      folderEl.className = "tree-folder";
+      folderEl.innerHTML = `<div><strong>${escapeHtml(folder.name)}</strong></div>`;
+      enableFolderDrop(folderEl, set.name, folder.name);
+      folder.questions.forEach((question) => {
+        const qEl = document.createElement("div");
+        qEl.className = `tree-question${state.selectedQuestionPath === question.path ? " active" : ""}`;
+        qEl.draggable = true;
+        qEl.dataset.path = question.path;
+        qEl.innerHTML = `<div>${escapeHtml(question.title || question.name)}</div><div class="muted">${escapeHtml(question.name)} · ${question.score}分</div>`;
+        qEl.addEventListener("click", () => openQuestion(question.path));
+        qEl.addEventListener("dragstart", (event) => {
+          qEl.classList.add("dragging");
+          event.dataTransfer.setData("text/plain", question.path);
+        });
+        qEl.addEventListener("dragend", () => qEl.classList.remove("dragging"));
+        folderEl.appendChild(qEl);
+      });
+      setEl.appendChild(folderEl);
+    });
+    els.tree.appendChild(setEl);
+  });
+}
+
+function enableFolderDrop(folderEl, setName, folderName) {
+  folderEl.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    folderEl.classList.add("drop-target");
+  });
+  folderEl.addEventListener("dragleave", () => folderEl.classList.remove("drop-target"));
+  folderEl.addEventListener("drop", async (event) => {
+    event.preventDefault();
+    folderEl.classList.remove("drop-target");
+    const fromPath = event.dataTransfer.getData("text/plain");
+    if (!fromPath) return;
+    await api("/api/move-question", { method: "POST", body: JSON.stringify({ fromPath, toSetName: setName, toFolderName: folderName }) });
+    await loadTree();
+  });
+}
+
+async function createSet() {
+  const name = els.newSetName.value.trim();
+  if (!name) return;
+  await api("/api/create-set", { method: "POST", body: JSON.stringify({ name }) });
+  els.newSetName.value = "";
+  await loadTree();
+}
+
+async function createFolder() {
+  const folderName = els.newFolderName.value.trim();
+  const setName = getSelectedSetName() || state.tree.sets[0]?.name || "";
+  if (!folderName || !setName) return;
+  await api("/api/create-folder", { method: "POST", body: JSON.stringify({ setName, folderName }) });
+  els.newFolderName.value = "";
+  await loadTree();
+}
+
+async function createQuestion() {
+  const fileName = (els.newQuestionName.value.trim() || "问题1.json");
+  const target = getSelectedFolderTarget();
+  if (!target.setName || !target.folderName) return;
+  const result = await api("/api/create-question", { method: "POST", body: JSON.stringify({ setName: target.setName, folderName: target.folderName, fileName }) });
+  els.newQuestionName.value = "";
+  await loadTree();
+  await openQuestion(result.path);
+}
+
+function getSelectedSetName() {
+  return (state.selectedQuestionPath || "").split("/")[0] || "";
+}
+
+function getSelectedFolderTarget() {
+  const parts = (state.selectedQuestionPath || "").split("/");
+  if (parts.length >= 2) {
+    return { setName: parts[0], folderName: parts[1] };
+  }
+  const firstSet = state.tree.sets[0];
+  return {
+    setName: firstSet?.name || "",
+    folderName: firstSet?.folders[0]?.name || "",
+  };
+}
+
+async function openQuestion(questionPath) {
+  const payload = await api(`/api/question?path=${encodeURIComponent(questionPath)}`);
+  state.selectedQuestionPath = questionPath;
+  state.currentQuestion = payload.content;
+  renderTree();
+  renderEditor();
+}
+
+function renderEditor() {
+  if (!state.currentQuestion) {
+    els.editorEmpty.classList.remove("hidden");
+    els.questionForm.classList.add("hidden");
+    return;
+  }
+  els.editorEmpty.classList.add("hidden");
+  els.questionForm.classList.remove("hidden");
+  const question = state.currentQuestion;
+  els.questionPath.value = state.selectedQuestionPath;
+  els.title.value = question.title || "";
+  els.score.value = Number(question.score ?? 1);
+  els.systemPrompt.value = question.systemPrompt || "";
+  els.expectedAnswer.value = question.expectedAnswer || "";
+  els.checker.value = question.checker || "";
+  els.rounds.innerHTML = "";
+  (question.conversation || []).forEach((round, index) => els.rounds.appendChild(createRoundEditor(round, index)));
+}
+
+function createRoundEditor(round, index) {
+  const roundEl = document.getElementById("roundTemplate").content.firstElementChild.cloneNode(true);
+  roundEl.querySelector(".round-title").textContent = `轮次 ${index + 1}`;
+  const userPartsEl = roundEl.querySelector(".user-parts");
+  const assistantListEl = roundEl.querySelector(".assistant-list");
+  (round.user?.parts || []).forEach((part) => userPartsEl.appendChild(createPartEditor(part)));
+  (round.assistant || []).forEach((assistant) => assistantListEl.appendChild(createAssistantEditor(assistant)));
+  roundEl.querySelector(".addTextPartBtn").addEventListener("click", () => userPartsEl.appendChild(createPartEditor({ type: "text", text: "" })));
+  roundEl.querySelector(".addImagePartBtn").addEventListener("click", () => userPartsEl.appendChild(createPartEditor({ type: "image", assetPath: "" })));
+  roundEl.querySelector(".addAssistantBtn").addEventListener("click", () => assistantListEl.appendChild(createAssistantEditor({ mode: "generate", content: "" })));
+  roundEl.querySelector(".removeRoundBtn").addEventListener("click", () => roundEl.remove());
+  return roundEl;
+}
+
+function createPartEditor(part) {
+  const wrap = document.createElement("div");
+  wrap.className = `part-card ${part.type === "image" ? "image" : "text"}`;
+  if (part.type === "image") {
+    wrap.innerHTML = `<div class="inline-grid"><div class="field"><label>图片资源</label><select class="part-asset-select"></select></div><div class="field"><label>上传新图</label><input class="part-upload" type="file" accept="image/*" /></div><div class="field buttons"><button type="button" class="removePartBtn">删除</button></div></div><div class="part-preview"></div>`;
+    fillAssetSelect(wrap.querySelector(".part-asset-select"), part.assetPath || "");
+    wrap.querySelector(".part-asset-select").addEventListener("change", () => refreshImagePreview(wrap));
+    wrap.querySelector(".part-upload").addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const setName = getCurrentSetName();
+      if (!setName) return;
+      const base64 = await fileToBase64(file);
+      const uploaded = await api("/api/upload-asset", { method: "POST", body: JSON.stringify({ setName, fileName: file.name, base64 }) });
+      await fillAssetSelect(wrap.querySelector(".part-asset-select"), `${setName}/assets/${uploaded.name}`);
+      refreshImagePreview(wrap);
+    });
+    refreshImagePreview(wrap);
+  } else {
+    wrap.innerHTML = `<div class="field"><label>用户文本</label><textarea class="part-text" rows="5"></textarea></div><div class="toolbar"><button type="button" class="removePartBtn">删除</button></div>`;
+    wrap.querySelector(".part-text").value = part.text || "";
+  }
+  wrap.querySelector(".removePartBtn").addEventListener("click", () => wrap.remove());
+  return wrap;
+}
+
+async function fillAssetSelect(selectEl, value) {
+  const setName = getCurrentSetName();
+  if (!setName) {
+    selectEl.innerHTML = `<option value="">请先选择题目</option>`;
+    return;
+  }
+  const assets = await api(`/api/assets?setName=${encodeURIComponent(setName)}`);
+  selectEl.innerHTML = `<option value="">请选择图片</option>`;
+  assets.forEach((asset) => {
+    const option = document.createElement("option");
+    option.value = `${setName}/assets/${asset.name}`;
+    option.textContent = asset.name;
+    option.selected = option.value === value;
+    selectEl.appendChild(option);
+  });
+}
+
+function refreshImagePreview(wrap) {
+  const select = wrap.querySelector(".part-asset-select");
+  const preview = wrap.querySelector(".part-preview");
+  preview.innerHTML = select.value ? `<img src="/dataset-file/${encodeURIComponent(select.value)}" alt="" />` : `<div class="muted">未选择图片</div>`;
+}
+
+function createAssistantEditor(item) {
+  const wrap = document.createElement("div");
+  wrap.className = "assistant-card";
+  wrap.innerHTML = `<div class="inline-grid"><div class="field"><label>助手回答模式</label><select class="assistant-mode"><option value="generate">留空时由模型生成</option><option value="seed">视作已有助手回答</option><option value="continue">作为助手续写上下文</option></select></div><div></div><div class="field buttons"><button type="button" class="removeAssistantBtn">删除</button></div></div><div class="field"><label>助手回答内容</label><textarea class="assistant-content" rows="2"></textarea></div>`;
+  wrap.querySelector(".assistant-mode").value = item.mode || "generate";
+  wrap.querySelector(".assistant-content").value = item.content || "";
+  wrap.querySelector(".removeAssistantBtn").addEventListener("click", () => wrap.remove());
+  return wrap;
+}
+
+function collectQuestionFromForm() {
+  return {
+    version: 1,
+    title: els.title.value.trim(),
+    score: Number(els.score.value || 0),
+    systemPrompt: els.systemPrompt.value,
+    expectedAnswer: els.expectedAnswer.value,
+    checker: els.checker.value,
+    conversation: [...els.rounds.children].map((roundEl) => ({
+      user: {
+        parts: [...roundEl.querySelector(".user-parts").children].map((partEl) => partEl.classList.contains("image") ? { type: "image", assetPath: partEl.querySelector(".part-asset-select").value } : { type: "text", text: partEl.querySelector(".part-text").value }),
+      },
+      assistant: [...roundEl.querySelector(".assistant-list").children].map((assistantEl) => ({
+        mode: assistantEl.querySelector(".assistant-mode").value,
+        content: assistantEl.querySelector(".assistant-content").value,
+      })),
+    })),
+    metadata: state.currentQuestion?.metadata || {},
+  };
+}
+
+async function saveQuestion() {
+  if (!state.selectedQuestionPath) return;
+  const content = collectQuestionFromForm();
+  await api("/api/question", { method: "POST", body: JSON.stringify({ path: state.selectedQuestionPath, content }) });
+  state.currentQuestion = content;
+  await loadTree();
+  renderTestingList();
+}
+
+async function quickRunCurrentQuestion() {
+  if (!state.selectedQuestionPath) return;
+  await saveQuestion();
+  switchPage("testing");
+  state.testingSet = getCurrentSetName();
+  syncTestingSelectors();
+  const item = state.testingItems.find((entry) => entry.path === state.selectedQuestionPath);
+  if (item) {
+    setTestingSelected(item.path);
+    await runSingleTest(item.path);
+  }
+}
+
+function addRound(round = null) {
+  els.rounds.appendChild(createRoundEditor(round || { user: { parts: [{ type: "text", text: "" }] }, assistant: [{ mode: "generate", content: "" }] }, els.rounds.children.length));
+}
+
+async function loadSettings() {
+  state.settings = await api("/api/settings");
+  if (!state.settings.presets.length) {
+    state.settings = { activePresetId: "default", presets: [{ id: "default", name: "默认预设", model: "", baseUrl: "https://api.openai.com/v1", apiKey: "", extraConfig: "{}" }] };
+  }
+  renderSettings();
+}
+
+function renderSettings() {
+  els.presetCards.innerHTML = "";
+  els.testingPresetSelect.innerHTML = "";
+  state.settings.presets.forEach((preset) => {
+    const card = document.createElement("div");
+    card.className = `preset-card${preset.id === state.settings.activePresetId ? " active" : ""}`;
+    card.innerHTML = `<div class="preset-card-title">${escapeHtml(preset.model || preset.name || "未命名模型")}</div><div>${escapeHtml(preset.name || "")}</div><div class="preset-card-meta">${escapeHtml(preset.baseUrl || "")}</div>`;
+    card.addEventListener("click", () => {
+      state.settings.activePresetId = preset.id;
+      renderSettings();
+    });
+    els.presetCards.appendChild(card);
+
+    const option = document.createElement("option");
+    option.value = preset.id;
+    option.textContent = preset.model ? `${preset.model} · ${preset.name}` : preset.name;
+    option.selected = preset.id === state.testingPresetId || (!state.testingPresetId && preset.id === state.settings.activePresetId);
+    els.testingPresetSelect.appendChild(option);
+  });
+  state.testingPresetId = els.testingPresetSelect.value || state.settings.presets[0]?.id || "";
+  renderPresetFields();
+}
+
+function renderPresetFields() {
+  const preset = getActivePreset();
+  if (!preset) return;
+  els.presetName.value = preset.name || "";
+  els.baseUrl.value = preset.baseUrl || "";
+  els.model.value = preset.model || "";
+  els.apiKey.value = preset.apiKey || "";
+  els.extraConfig.value = preset.extraConfig || "{}";
+}
+
+function createPreset() {
+  const name = (els.presetName.value || "").trim();
+  if (!name) return;
+  const id = `preset-${Date.now()}`;
+  state.settings.presets.push({ id, name, model: name, baseUrl: "https://api.openai.com/v1", apiKey: "", extraConfig: "{}" });
+  state.settings.activePresetId = id;
+  renderSettings();
+}
+
+function deletePreset() {
+  if (state.settings.presets.length <= 1) return;
+  state.settings.presets = state.settings.presets.filter((item) => item.id !== state.settings.activePresetId);
+  state.settings.activePresetId = state.settings.presets[0].id;
+  renderSettings();
+}
+
+async function saveSettings() {
+  const preset = getActivePreset();
+  if (!preset) return;
+  preset.name = els.presetName.value.trim() || preset.name;
+  preset.baseUrl = els.baseUrl.value.trim();
+  preset.model = els.model.value.trim();
+  preset.apiKey = els.apiKey.value.trim();
+  preset.extraConfig = els.extraConfig.value.trim() || "{}";
+  await api("/api/settings", { method: "POST", body: JSON.stringify(state.settings) });
+  renderSettings();
+}
+
+function syncTestingSelectors() {
+  els.testingSetSelect.innerHTML = "";
+  state.tree.sets.forEach((set) => {
+    const option = document.createElement("option");
+    option.value = set.name;
+    option.textContent = set.name;
+    option.selected = set.name === state.testingSet;
+    els.testingSetSelect.appendChild(option);
+  });
+  state.testingSet = els.testingSetSelect.value || state.tree.sets[0]?.name || "";
+  if (!state.testingPresetId) state.testingPresetId = state.settings.activePresetId || state.settings.presets[0]?.id || "";
+  renderTestingList();
+}
+
+function renderTestingList() {
+  const set = state.tree.sets.find((item) => item.name === state.testingSet);
+  const items = [];
+  if (set) {
+    set.folders.forEach((folder) => folder.questions.forEach((question) => items.push({ path: question.path, title: question.title || question.name, fileName: question.name, folderName: folder.name, score: question.score || 0, open: true, running: false, result: null, manualScore: null, followUpText: "" })));
+  }
+  const oldMap = new Map(state.testingItems.map((item) => [item.path, item]));
+  state.testingItems = items.map((item) => ({ ...item, ...(oldMap.get(item.path) || {}) }));
+  refreshTestingView();
+  renderTestingTree();
+}
+
+function createTestingCard(item) {
+  const details = document.createElement("details");
+  details.className = "test-card";
+  details.dataset.path = item.path;
+  details.open = Boolean(item.open);
+  details.addEventListener("toggle", () => {
+    item.open = details.open;
+  });
+
+  const summary = document.createElement("summary");
+  summary.innerHTML = `<div class="test-header"><div><div class="test-title">${escapeHtml(item.title)}</div><div class="test-meta">${escapeHtml(item.folderName)} · ${escapeHtml(item.fileName)}</div></div><div class="score-badge">${Number(item.manualScore ?? item.result?.score?.earned ?? 0)} / ${item.score}</div></div>`;
+  details.appendChild(summary);
+
+  const body = document.createElement("div");
+  body.className = "test-body";
+  const conversation = document.createElement("div");
+  const side = document.createElement("div");
+  side.className = "test-side";
+  side.innerHTML = `<div class="toolbar"><button type="button" class="runOneBtn">${item.running ? "执行中..." : "测试本题"}</button></div><div class="field"><label>手动分数</label><input class="manualScoreInput" type="number" min="0" step="0.5" /></div><div class="status-line">${item.running ? "正在按轮次自动测试..." : "就绪"}</div>`;
+  const runButton = side.querySelector(".runOneBtn");
+  runButton.disabled = item.running;
+  runButton.addEventListener("click", () => runSingleTest(item.path));
+  side.querySelector(".manualScoreInput").value = item.manualScore ?? item.result?.score?.earned ?? 0;
+  side.querySelector(".manualScoreInput").addEventListener("change", (event) => {
+    item.manualScore = event.target.value === "" ? null : Number(event.target.value);
+    updateScoreSummary();
+    refreshTestingView();
+  });
+
+  body.append(conversation, side);
+  details.appendChild(body);
+  renderQuestionConversation(item, conversation);
+  return details;
+}
+
+async function renderQuestionConversation(item, targetEl) {
+  if (!item.question) {
+    item.question = (await api(`/api/question?path=${encodeURIComponent(item.path)}`)).content;
+  }
+  const transcript = item.result?.transcript;
+  targetEl.innerHTML = "";
+
+  if (!transcript?.length && item.question.systemPrompt) {
+    targetEl.appendChild(renderMessageBubble("system", item.question.systemPrompt));
+  }
+
+  if (transcript?.length) {
+    transcript.forEach((entry) => targetEl.appendChild(renderTranscriptEntry(entry)));
+  } else {
+    buildDraftTranscript(item.question).forEach((entry) => targetEl.appendChild(renderTranscriptEntry(entry)));
+  }
+
+  const followWrap = document.createElement("div");
+  followWrap.className = "drawer";
+  followWrap.innerHTML = `<div class="field"><label>追问</label><textarea class="followUpInput" rows="3" placeholder="会以当前上下文继续提问"></textarea></div><div class="toolbar"><button type="button" class="sendFollowUpBtn">发送追问</button></div>`;
+  followWrap.querySelector(".followUpInput").value = item.followUpText || "";
+  followWrap.querySelector(".followUpInput").addEventListener("input", (event) => {
+    item.followUpText = event.target.value;
+  });
+  followWrap.querySelector(".sendFollowUpBtn").addEventListener("click", async () => {
+    if (!item.followUpText.trim()) return;
+    await runSingleTest(item.path);
+  });
+  targetEl.appendChild(followWrap);
+}
+
+function buildDraftTranscript(question) {
+  const transcript = [];
+  (question.conversation || []).forEach((round) => {
+    (round.user?.parts || []).forEach((part) => transcript.push({ role: "user", content: [part] }));
+    (round.assistant || []).forEach((assistant) => {
+      if (assistant.content) transcript.push({ role: "assistant", content: assistant.content, mode: assistant.mode || "seed" });
+      else transcript.push({ role: "assistant", content: "", mode: assistant.mode || "generate", pending: true });
+    });
+  });
+  return transcript;
+}
+
+function renderTranscriptEntry(entry) {
+  if (entry.role === "system") {
+    return renderMessageBubble("system", entry.content);
+  }
+
+  if (entry.role === "user") {
+    const wrap = document.createElement("div");
+    (entry.content || []).forEach((part) => {
+      if (part.type === "image" && part.assetPath) {
+        const bubble = document.createElement("div");
+        bubble.className = "message-bubble message-user";
+        bubble.innerHTML = `<img src="/dataset-file/${encodeURIComponent(part.assetPath)}" alt="" style="max-width:280px; border-radius:8px" />`;
+        wrap.appendChild(bubble);
+      } else {
+        wrap.appendChild(renderMessageBubble("user", part.text || ""));
+      }
+    });
+    return wrap;
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "message-assistant-wrap";
+  wrap.appendChild(renderMessageBubble("assistant", entry.content || (entry.pending ? "_等待模型回答_" : ""), entry.reasoning || ""));
+  if (entry.request) {
+    const controls = document.createElement("div");
+    controls.className = "message-controls";
+    const rawBtn = document.createElement("button");
+    rawBtn.type = "button";
+    rawBtn.textContent = "查看原始提交";
+    const drawer = document.createElement("details");
+    drawer.className = "drawer";
+    drawer.innerHTML = `<summary>请求与响应</summary><pre>${escapeHtml(JSON.stringify({ request: entry.request, response: entry.response }, null, 2))}</pre>`;
+    drawer.open = false;
+    rawBtn.addEventListener("click", () => {
+      drawer.open = !drawer.open;
+    });
+    controls.appendChild(rawBtn);
+    wrap.appendChild(controls);
+    wrap.appendChild(drawer);
+  }
+  return wrap;
+}
+
+function renderMessageBubble(role, content, reasoning = "") {
+  const div = document.createElement("div");
+  div.className = `message-bubble message-${role}`;
+  div.innerHTML = role === "assistant" ? renderAssistantAnswer(content || "", reasoning) : renderMarkdown(content || "");
+  return div;
+}
+
+function renderAssistantAnswer(answer, reasoning = "") {
+  const thinkMatch = String(answer).match(/<think>([\s\S]*?)<\/think>/i);
+  let visible = String(answer);
+  let finalReasoning = reasoning || "";
+  if (thinkMatch) {
+    visible = String(answer).replace(thinkMatch[0], "").trim();
+    finalReasoning = finalReasoning || thinkMatch[1];
+  }
+  const rendered = renderMarkdown(visible);
+  if (!finalReasoning) return rendered;
+  return `${rendered}<details><summary>思考过程</summary><pre>${escapeHtml(finalReasoning)}</pre></details>`;
+}
+
+async function runSingleTest(questionPath) {
+  const item = state.testingItems.find((entry) => entry.path === questionPath);
+  if (!item) return;
+  const preset = getTestingPreset();
+  if (!preset) return;
+  if (!item.question) item.question = (await api(`/api/question?path=${encodeURIComponent(questionPath)}`)).content;
+  item.running = true;
+  refreshTestingView();
+  try {
+    item.result = await api("/api/run-test", { method: "POST", body: JSON.stringify({ preset, question: item.question, followUpText: item.followUpText || "" }) });
+    item.manualScore = null;
+    setTestingSelected(item.path);
+  } catch (error) {
+    item.result = { answer: "", transcript: [], score: { earned: 0, total: item.score, passed: false, error: error.message } };
+  } finally {
+    item.running = false;
+    refreshTestingView();
+  }
+}
+
+async function runAllTests() {
+  for (const item of state.testingItems) {
+    await runSingleTest(item.path);
+  }
+}
+
+function refreshTestingView() {
+  const openMap = new Map();
+  [...els.testingList.querySelectorAll(".test-card")].forEach((card, index) => openMap.set(state.testingItems[index]?.path, card.open));
+  els.testingList.innerHTML = "";
+  state.testingItems.forEach((item) => {
+    if (openMap.has(item.path)) item.open = openMap.get(item.path);
+    els.testingList.appendChild(createTestingCard(item));
+  });
+  updateScoreSummary();
+  highlightSelectedTestingTree();
+}
+
+function updateScoreSummary() {
+  const total = state.testingItems.reduce((sum, item) => sum + Number(item.score || 0), 0);
+  const earned = state.testingItems.reduce((sum, item) => sum + Number(item.manualScore ?? item.result?.score?.earned ?? 0), 0);
+  els.scoreSummary.textContent = `总分：${earned} / ${total}`;
+}
+
+function toggleAllTests(expanded) {
+  [...els.testingList.querySelectorAll(".test-card")].forEach((el, index) => {
+    el.open = expanded;
+    if (state.testingItems[index]) state.testingItems[index].open = expanded;
+  });
+}
+
+async function saveResult() {
+  const preset = getTestingPreset();
+  const dataset = state.testingSet;
+  const name = els.resultName.value.trim() || `${dataset}-${preset?.model || "未命名模型"}-${formatNow()}`;
+  const payload = {
+    name,
+    dataset,
+    model: { presetId: preset?.id || "", presetName: preset?.name || "", model: preset?.model || "", baseUrl: preset?.baseUrl || "" },
+    items: state.testingItems.map((item) => ({ path: item.path, title: item.title, fileName: item.fileName, score: item.score, manualScore: item.manualScore, followUpText: item.followUpText, result: item.result })),
+  };
+  await api("/api/save-result", { method: "POST", body: JSON.stringify(payload) });
+  await loadResults();
+}
+
+async function loadResults() {
+  const results = await api("/api/results");
+  els.savedResultSelect.innerHTML = `<option value="">选择一个结果</option>`;
+  results.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item.id;
+    option.textContent = `${item.name} · ${item.createdAt}`;
+    els.savedResultSelect.appendChild(option);
+  });
+}
+
+async function loadSelectedResult() {
+  const id = els.savedResultSelect.value;
+  if (!id) return;
+  const result = await api(`/api/result?id=${encodeURIComponent(id)}`);
+  if (result.dataset) {
+    state.testingSet = result.dataset;
+    syncTestingSelectors();
+  }
+  const map = new Map((result.items || []).map((item) => [item.path, item]));
+  state.testingItems = state.testingItems.map((item) => {
+    const saved = map.get(item.path);
+    return saved ? { ...item, result: saved.result || null, manualScore: saved.manualScore, followUpText: saved.followUpText || "" } : item;
+  });
+  refreshTestingView();
+}
+
+function renderTestingTree() {
+  els.testingTree.innerHTML = "";
+  const set = state.tree.sets.find((item) => item.name === state.testingSet);
+  if (!set) return;
+  set.folders.forEach((folder) => {
+    const folderEl = document.createElement("div");
+    folderEl.className = "tree-folder";
+    folderEl.innerHTML = `<div><strong>${escapeHtml(folder.name)}</strong></div>`;
+    folder.questions.forEach((question) => {
+      const qEl = document.createElement("div");
+      qEl.className = "tree-question";
+      qEl.dataset.path = question.path;
+      qEl.innerHTML = `<div>${escapeHtml(question.title || question.name)}</div>`;
+      qEl.addEventListener("click", () => {
+        setTestingSelected(question.path);
+      });
+      folderEl.appendChild(qEl);
+    });
+    els.testingTree.appendChild(folderEl);
+  });
+  highlightSelectedTestingTree();
+}
+
+function setTestingSelected(path) {
+  state.testingSelectedPath = path;
+  highlightSelectedTestingTree();
+  scrollToTestingCard(path);
+}
+
+function highlightSelectedTestingTree() {
+  if (!els.testingTree) return;
+  [...els.testingTree.querySelectorAll(".tree-question")].forEach((node) => {
+    node.classList.toggle("active", node.dataset.path === state.testingSelectedPath);
+  });
+}
+
+function scrollToTestingCard(path) {
+  const selector = `[data-path="${cssEscape(path)}"]`;
+  const card = els.testingList.querySelector(selector);
+  if (!card) return;
+  card.open = true;
+  const item = state.testingItems.find((entry) => entry.path === path);
+  if (item) item.open = true;
+  card.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function getActivePreset() {
+  return state.settings.presets.find((item) => item.id === state.settings.activePresetId);
+}
+
+function getTestingPreset() {
+  const preset = state.settings.presets.find((item) => item.id === (state.testingPresetId || els.testingPresetSelect.value));
+  if (!preset) return null;
+  let extra = {};
+  try {
+    extra = preset.extraConfig ? JSON.parse(preset.extraConfig) : {};
+  } catch {
+    extra = {};
+  }
+  return { ...preset, extraConfigParsed: extra };
+}
+
+function getCurrentSetName() {
+  return (state.selectedQuestionPath || "").split("/")[0] || "";
+}
+
+function escapeHtml(text) {
+  return String(text || "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+}
+
+function renderMarkdown(source) {
+  const escaped = escapeHtml(source);
+  return escaped
+    .replace(/^### (.*)$/gm, "<h3>$1</h3>")
+    .replace(/^## (.*)$/gm, "<h2>$1</h2>")
+    .replace(/^# (.*)$/gm, "<h1>$1</h1>")
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
+    .replace(/\n/g, "<br />");
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatNow() {
+  return new Date().toISOString().replaceAll(":", "-");
+}
+
+function cssEscape(value) {
+  if (window.CSS && typeof window.CSS.escape === "function") {
+    return window.CSS.escape(value);
+  }
+  return String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}

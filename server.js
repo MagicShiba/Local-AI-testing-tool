@@ -1,0 +1,560 @@
+const http = require("http");
+const fs = require("fs");
+const fsp = fs.promises;
+const path = require("path");
+const { URL } = require("url");
+
+const ROOT = __dirname;
+const PUBLIC_DIR = path.join(ROOT, "public");
+const DATASET_ROOT = path.join(ROOT, "测试数据集");
+const APP_DATA_DIR = path.join(ROOT, "app-data");
+const SETTINGS_FILE = path.join(APP_DATA_DIR, "settings.json");
+const RESULTS_DIR = path.join(APP_DATA_DIR, "results");
+const MAX_BODY = 50 * 1024 * 1024;
+
+ensureDirSync(DATASET_ROOT);
+ensureDirSync(APP_DATA_DIR);
+ensureDirSync(RESULTS_DIR);
+
+const MIME = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".txt": "text/plain; charset=utf-8",
+};
+
+const DATA_URL_MIME = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".bmp": "image/bmp",
+  ".svg": "image/svg+xml",
+};
+
+const defaultQuestion = (filename = "问题1.json") => ({
+  version: 1,
+  title: "",
+  score: 1,
+  systemPrompt: "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  conversation: [
+    {
+      user: {
+        parts: [
+          {
+            type: "text",
+            text: "",
+          },
+        ],
+      },
+      assistant: [],
+    },
+  ],
+  checker: `function checkAnswer(answer, context) {\n  const expected = (context.question.expectedAnswer || "").trim();\n  if (!expected) {\n    return answer.trim().length > 0;\n  }\n  return answer.trim() === expected;\n}`,
+  expectedAnswer: "",
+  metadata: {
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    filename,
+  },
+});
+
+const server = http.createServer(async (req, res) => {
+  try {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    if (url.pathname.startsWith("/api/")) {
+      await handleApi(req, res, url);
+      return;
+    }
+
+    if (url.pathname.startsWith("/dataset-file/")) {
+      await serveDatasetFile(res, url);
+      return;
+    }
+
+    await serveStatic(res, url);
+  } catch (error) {
+    respondJson(res, 500, {
+      error: error.message || "Internal Server Error",
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
+  }
+});
+
+server.listen(3000, () => {
+  console.log("AI能力测试项目已启动: http://127.0.0.1:3000");
+});
+
+async function handleApi(req, res, url) {
+  if (req.method === "GET" && url.pathname === "/api/tree") {
+    return respondJson(res, 200, await readDatasetTree());
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/create-set") {
+    const body = await readJsonBody(req);
+    const setName = sanitizeSegment(body.name);
+    if (!setName) return respondJson(res, 400, { error: "测试集名称不能为空" });
+    await ensureDir(path.join(DATASET_ROOT, setName, "assets"));
+    return respondJson(res, 200, { ok: true });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/create-folder") {
+    const body = await readJsonBody(req);
+    const setName = sanitizeSegment(body.setName);
+    const folderName = sanitizeSegment(body.folderName);
+    if (!setName || !folderName) return respondJson(res, 400, { error: "测试集和文件夹名称不能为空" });
+    await ensureDir(path.join(DATASET_ROOT, setName, folderName));
+    return respondJson(res, 200, { ok: true });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/create-question") {
+    const body = await readJsonBody(req);
+    const setName = sanitizeSegment(body.setName);
+    const folderName = sanitizeSegment(body.folderName);
+    const fileName = sanitizeQuestionFileName(body.fileName || "问题1.json");
+    if (!setName || !folderName) return respondJson(res, 400, { error: "测试集和文件夹不能为空" });
+    const target = path.join(DATASET_ROOT, setName, folderName, fileName);
+    if (await exists(target)) return respondJson(res, 400, { error: "题目文件已存在" });
+    await fsp.writeFile(target, JSON.stringify(defaultQuestion(fileName), null, 2), "utf8");
+    return respondJson(res, 200, { ok: true, path: path.join(setName, folderName, fileName).replaceAll("\\", "/") });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/question") {
+    const rel = url.searchParams.get("path");
+    const fullPath = resolveDatasetPath(rel);
+    return respondJson(res, 200, { path: rel, content: JSON.parse(await fsp.readFile(fullPath, "utf8")) });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/question") {
+    const body = await readJsonBody(req);
+    const fullPath = resolveDatasetPath(body.path);
+    const content = body.content || {};
+    content.version = 1;
+    content.metadata = content.metadata || {};
+    content.metadata.updatedAt = new Date().toISOString();
+    content.metadata.filename = path.basename(fullPath);
+    await fsp.writeFile(fullPath, JSON.stringify(content, null, 2), "utf8");
+    return respondJson(res, 200, { ok: true });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/move-question") {
+    const body = await readJsonBody(req);
+    const fromPath = resolveDatasetPath(body.fromPath);
+    const setName = sanitizeSegment(body.toSetName);
+    const folderName = sanitizeSegment(body.toFolderName);
+    if (!setName || !folderName) return respondJson(res, 400, { error: "目标测试集和文件夹不能为空" });
+    const destDir = path.join(DATASET_ROOT, setName, folderName);
+    await ensureDir(destDir);
+    await fsp.rename(fromPath, path.join(destDir, path.basename(fromPath)));
+    return respondJson(res, 200, { ok: true });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/assets") {
+    const setName = sanitizeSegment(url.searchParams.get("setName"));
+    if (!setName) return respondJson(res, 400, { error: "测试集不能为空" });
+    const assetsDir = path.join(DATASET_ROOT, setName, "assets");
+    await ensureDir(assetsDir);
+    const files = await fsp.readdir(assetsDir, { withFileTypes: true });
+    return respondJson(
+      res,
+      200,
+      files.filter((entry) => entry.isFile()).map((entry) => ({
+        name: entry.name,
+        url: `/dataset-file/${encodeURIComponent(path.join(setName, "assets", entry.name).replaceAll("\\", "/"))}`,
+      }))
+    );
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/upload-asset") {
+    const body = await readJsonBody(req);
+    const setName = sanitizeSegment(body.setName);
+    const fileName = sanitizeAssetFileName(body.fileName);
+    const base64 = body.base64 || "";
+    if (!setName || !fileName || !base64) return respondJson(res, 400, { error: "缺少上传参数" });
+    const assetsDir = path.join(DATASET_ROOT, setName, "assets");
+    await ensureDir(assetsDir);
+    const pureBase64 = base64.includes(",") ? base64.split(",").pop() : base64;
+    await fsp.writeFile(path.join(assetsDir, fileName), Buffer.from(pureBase64, "base64"));
+    return respondJson(res, 200, { ok: true, name: fileName });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/settings") {
+    return respondJson(res, 200, await readJsonFile(SETTINGS_FILE, { presets: [], activePresetId: "" }));
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/settings") {
+    const body = await readJsonBody(req);
+    await fsp.writeFile(SETTINGS_FILE, JSON.stringify(body, null, 2), "utf8");
+    return respondJson(res, 200, { ok: true });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/results") {
+    const files = await fsp.readdir(RESULTS_DIR, { withFileTypes: true });
+    const list = [];
+    for (const entry of files) {
+      if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+      const data = await readJsonFile(path.join(RESULTS_DIR, entry.name), null);
+      if (data) list.push({ id: data.id, name: data.name, createdAt: data.createdAt, model: data.model, dataset: data.dataset });
+    }
+    list.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    return respondJson(res, 200, list);
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/result") {
+    const id = sanitizeSimpleName(url.searchParams.get("id"));
+    if (!id) return respondJson(res, 400, { error: "结果ID不能为空" });
+    const data = await readJsonFile(path.join(RESULTS_DIR, `${id}.json`), null);
+    if (!data) return respondJson(res, 404, { error: "结果不存在" });
+    return respondJson(res, 200, data);
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/save-result") {
+    const body = await readJsonBody(req);
+    const id = body.id ? sanitizeSimpleName(body.id) : createId();
+    const payload = { ...body, id, createdAt: body.createdAt || new Date().toISOString() };
+    await fsp.writeFile(path.join(RESULTS_DIR, `${id}.json`), JSON.stringify(payload, null, 2), "utf8");
+    return respondJson(res, 200, { ok: true, id });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/run-test") {
+    const body = await readJsonBody(req);
+    const preset = body.preset || {};
+    const question = body.question || {};
+    const execution = await executeQuestion(preset, question, body.followUpText || "");
+    return respondJson(res, 200, execution);
+  }
+
+  respondJson(res, 404, { error: "接口不存在" });
+}
+
+async function serveStatic(res, url) {
+  const target = url.pathname === "/" ? "/index.html" : url.pathname;
+  const fullPath = path.resolve(PUBLIC_DIR, `.${target}`);
+  if (!fullPath.startsWith(PUBLIC_DIR)) return respondText(res, 403, "Forbidden");
+  const stat = await fsp.stat(fullPath).catch(() => null);
+  if (!stat || !stat.isFile()) return respondText(res, 404, "Not Found");
+  res.writeHead(200, { "Content-Type": MIME[path.extname(fullPath).toLowerCase()] || "application/octet-stream" });
+  fs.createReadStream(fullPath).pipe(res);
+}
+
+async function serveDatasetFile(res, url) {
+  const fullPath = resolveDatasetPath(decodeURIComponent(url.pathname.replace("/dataset-file/", "")));
+  const stat = await fsp.stat(fullPath).catch(() => null);
+  if (!stat || !stat.isFile()) return respondText(res, 404, "Not Found");
+  res.writeHead(200, { "Content-Type": MIME[path.extname(fullPath).toLowerCase()] || "application/octet-stream" });
+  fs.createReadStream(fullPath).pipe(res);
+}
+
+async function executeQuestion(preset, question, followUpText) {
+  const messages = [];
+  const transcript = [];
+  const requests = [];
+  let lastAnswer = "";
+
+  if (question.systemPrompt) {
+    messages.push({ role: "system", content: question.systemPrompt });
+    transcript.push({ role: "system", content: question.systemPrompt });
+  }
+
+  for (const round of question.conversation || []) {
+    const userContent = await toUserContent(round.user?.parts || []);
+    const userMessage = { role: "user", content: userContent };
+    messages.push(userMessage);
+    transcript.push({
+      role: "user",
+      content: round.user?.parts || [],
+    });
+
+    const assistantItems = Array.isArray(round.assistant) && round.assistant.length
+      ? round.assistant
+      : [{ mode: "generate", content: "" }];
+
+    for (const assistantItem of assistantItems) {
+      const hasManualContent = String(assistantItem?.content || "").trim().length > 0;
+      if (hasManualContent) {
+        messages.push({ role: "assistant", content: assistantItem.content });
+        transcript.push({
+          role: "assistant",
+          mode: assistantItem.mode || "seed",
+          content: assistantItem.content,
+        });
+        lastAnswer = assistantItem.content;
+        continue;
+      }
+
+      const requestMessages = cloneJson(messages);
+      const response = await callOpenAI(preset, requestMessages);
+      const answer = extractAnswerText(response);
+      const reasoning = extractReasoningText(response);
+      messages.push({ role: "assistant", content: answer });
+      transcript.push({
+        role: "assistant",
+        mode: "generate",
+        content: answer,
+        reasoning,
+        request: {
+          model: preset.model,
+          baseUrl: preset.baseUrl,
+          messages: requestMessages,
+        },
+        response,
+      });
+      requests.push({
+        model: preset.model,
+        baseUrl: preset.baseUrl,
+        messages: requestMessages,
+        response,
+        answer,
+        reasoning,
+      });
+      lastAnswer = answer;
+    }
+  }
+
+  if (followUpText) {
+    const followUpMessage = { role: "user", content: followUpText };
+    messages.push(followUpMessage);
+    transcript.push({
+      role: "user",
+      content: [{ type: "text", text: followUpText }],
+      isFollowUp: true,
+    });
+
+    const requestMessages = cloneJson(messages);
+    const response = await callOpenAI(preset, requestMessages);
+    const answer = extractAnswerText(response);
+    const reasoning = extractReasoningText(response);
+    messages.push({ role: "assistant", content: answer });
+    transcript.push({
+      role: "assistant",
+      mode: "generate",
+      content: answer,
+      reasoning,
+      isFollowUp: true,
+      request: {
+        model: preset.model,
+        baseUrl: preset.baseUrl,
+        messages: requestMessages,
+      },
+      response,
+    });
+    requests.push({
+      model: preset.model,
+      baseUrl: preset.baseUrl,
+      messages: requestMessages,
+      response,
+      answer,
+      reasoning,
+      isFollowUp: true,
+    });
+    lastAnswer = answer;
+  }
+
+  return {
+    request: requests[requests.length - 1]?.messages ? { model: preset.model, baseUrl: preset.baseUrl, messages: requests[requests.length - 1].messages } : { model: preset.model, baseUrl: preset.baseUrl, messages },
+    response: requests[requests.length - 1]?.response || null,
+    answer: lastAnswer,
+    score: evaluateAnswer(question, lastAnswer),
+    transcript,
+    requests,
+  };
+}
+
+async function toUserContent(parts) {
+  const userParts = [];
+  for (const part of parts) {
+    if (part.type === "image" && part.assetPath) {
+      userParts.push({ type: "image_url", image_url: { url: await datasetAssetToDataUrl(part.assetPath) } });
+    } else {
+      userParts.push({ type: "text", text: part.text || "" });
+    }
+  }
+  return userParts.length === 1 && userParts[0].type === "text" ? userParts[0].text : userParts;
+}
+
+async function callOpenAI(preset, messages) {
+  if (!preset.baseUrl || !preset.model || !preset.apiKey) {
+    throw new Error("请先在设置页填写可用的 baseUrl、model 和 apiKey");
+  }
+  const endpoint = `${String(preset.baseUrl).replace(/\/+$/, "")}/chat/completions`;
+  const extraBody = preset.extraConfigParsed && typeof preset.extraConfigParsed === "object" ? preset.extraConfigParsed : {};
+  const resp = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${preset.apiKey}`,
+    },
+    body: JSON.stringify({ model: preset.model, messages, ...extraBody }),
+  });
+  const text = await resp.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { raw: text };
+  }
+  if (!resp.ok) throw new Error(`模型调用失败(${resp.status}): ${JSON.stringify(data)}`);
+  return data;
+}
+
+function extractAnswerText(response) {
+  const message = response?.choices?.[0]?.message;
+  if (!message) return "";
+  if (typeof message.content === "string") return message.content;
+  if (Array.isArray(message.content)) {
+    return message.content.map((item) => (typeof item === "string" ? item : item?.text || "")).join("\n");
+  }
+  return "";
+}
+
+function extractReasoningText(response) {
+  const message = response?.choices?.[0]?.message;
+  const reasoning = message?.reasoning_content;
+  if (!reasoning) return "";
+  if (typeof reasoning === "string") return reasoning;
+  if (Array.isArray(reasoning)) {
+    return reasoning.map((item) => (typeof item === "string" ? item : item?.text || "")).join("\n");
+  }
+  return "";
+}
+
+function evaluateAnswer(question, answer) {
+  const maxScore = Number(question.score || 0);
+  let passed = false;
+  let error = "";
+  try {
+    const fn = new Function(`return (${question.checker || defaultQuestion().checker});`)();
+    passed = Boolean(fn(answer, { question }));
+  } catch (err) {
+    error = err.message || String(err);
+  }
+  return { passed, error, earned: passed ? maxScore : 0, total: maxScore };
+}
+
+async function readDatasetTree() {
+  const sets = [];
+  const entries = await fsp.readdir(DATASET_ROOT, { withFileTypes: true });
+  for (const setEntry of entries) {
+    if (!setEntry.isDirectory()) continue;
+    const setName = setEntry.name;
+    const setDir = path.join(DATASET_ROOT, setName);
+    const folders = [];
+    const folderEntries = await fsp.readdir(setDir, { withFileTypes: true });
+    for (const folderEntry of folderEntries) {
+      if (!folderEntry.isDirectory() || folderEntry.name === "assets") continue;
+      const folderDir = path.join(setDir, folderEntry.name);
+      const questionEntries = await fsp.readdir(folderDir, { withFileTypes: true });
+      const questions = [];
+      for (const item of questionEntries) {
+        if (!item.isFile() || !item.name.endsWith(".json")) continue;
+        const relPath = path.join(setName, folderEntry.name, item.name).replaceAll("\\", "/");
+        const question = await readJsonFile(path.join(folderDir, item.name), {});
+        questions.push({ type: "question", name: item.name, path: relPath, title: question.title || "", score: Number(question.score || 0) });
+      }
+      questions.sort((a, b) => a.name.localeCompare(b.name, "zh-Hans-CN"));
+      folders.push({ type: "folder", name: folderEntry.name, path: path.join(setName, folderEntry.name).replaceAll("\\", "/"), questions });
+    }
+    folders.sort((a, b) => a.name.localeCompare(b.name, "zh-Hans-CN"));
+    sets.push({ type: "set", name: setName, path: setName, folders });
+  }
+  sets.sort((a, b) => a.name.localeCompare(b.name, "zh-Hans-CN"));
+  return { sets };
+}
+
+function absoluteDatasetAssetUrl(assetPath) {
+  return `http://127.0.0.1:3000/dataset-file/${encodeURIComponent(String(assetPath).replaceAll("\\", "/"))}`;
+}
+
+async function datasetAssetToDataUrl(assetPath) {
+  const fullPath = resolveDatasetPath(assetPath);
+  const ext = path.extname(fullPath).toLowerCase();
+  const mime = DATA_URL_MIME[ext] || "application/octet-stream";
+  const buffer = await fsp.readFile(fullPath);
+  return `data:${mime};base64,${buffer.toString("base64")}`;
+}
+
+function resolveDatasetPath(relPath) {
+  const fullPath = path.resolve(DATASET_ROOT, String(relPath || "").replaceAll("/", path.sep));
+  if (!fullPath.startsWith(DATASET_ROOT)) throw new Error("非法路径");
+  return fullPath;
+}
+
+function sanitizeSegment(input) {
+  return String(input || "").trim().replace(/[\\/:*?"<>|]/g, "_");
+}
+
+function sanitizeQuestionFileName(input) {
+  const base = sanitizeSegment(input).replace(/\.json$/i, "");
+  return `${base || "问题1"}.json`;
+}
+
+function sanitizeAssetFileName(input) {
+  return sanitizeSegment(input);
+}
+
+function sanitizeSimpleName(input) {
+  return String(input || "").trim().replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+async function readJsonBody(req) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > MAX_BODY) throw new Error("请求体过大");
+    chunks.push(chunk);
+  }
+  return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+}
+
+async function readJsonFile(filePath, fallback) {
+  try {
+    return JSON.parse(await fsp.readFile(filePath, "utf8"));
+  } catch {
+    return fallback;
+  }
+}
+
+async function ensureDir(dir) {
+  await fsp.mkdir(dir, { recursive: true });
+}
+
+function ensureDirSync(dir) {
+  fs.mkdirSync(dir, { recursive: true });
+}
+
+async function exists(filePath) {
+  try {
+    await fsp.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function createId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function respondJson(res, status, data) {
+  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(data));
+}
+
+function respondText(res, status, text) {
+  res.writeHead(status, { "Content-Type": "text/plain; charset=utf-8" });
+  res.end(text);
+}
