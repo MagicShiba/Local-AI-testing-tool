@@ -90,13 +90,8 @@
                 </div>
                 <div class="field">
                   <label>系统 Prompt</label>
-                  <textarea id="systemPrompt" rows="3"></textarea>
+                  <textarea id="systemPrompt" rows="2"></textarea>
                 </div>
-                <div class="field">
-                  <label>注释</label>
-                  <textarea id="note" rows="2" placeholder="仅供测试页状态区查看"></textarea>
-                </div>
-
                 <div class="panel-header inline">
                   <h3>对话轮次</h3>
                   <button type="button" id="addRoundBtn">添加轮次</button>
@@ -109,7 +104,11 @@
                 </div>
                 <div class="field">
                   <label>检测代码（JS 函数）</label>
-                  <textarea id="checker" rows="12"></textarea>
+                  <textarea id="checker" rows="5"></textarea>
+                </div>
+				<div class="field">
+                  <label>注释</label>
+                  <textarea id="note" rows="2" placeholder="仅供测试页状态区查看"></textarea>
                 </div>
               </form>
             </section>
@@ -165,7 +164,7 @@
         <section class="page" id="page-testing">
           <div class="testing-header">
             <div class="panel-header">
-              <h2>测试执行</h2>
+              <h3>测试执行</h3>
             </div>
             <div class="testing-controls">
               <div class="field">

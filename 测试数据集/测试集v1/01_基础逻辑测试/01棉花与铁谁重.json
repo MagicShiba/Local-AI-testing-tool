@@ -3,8 +3,9 @@
   "title": "1斤棉花与1斤铁哪个重?",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "哈哈，没想到吧！",
   "expectedAnswer": "棉花",
-  "checker": "function checkAnswer(answer, context) {\n  const cleanedAnswer = String(answer || \"\").trim();\n  const allowedOptions = [\"D\", \"E\", \"H\"];\n  return allowedOptions.includes(cleanedAnswer);\n}",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
     {
       "user": {
@@ -36,7 +37,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-14T15:00:32.151Z",
-    "updatedAt": "2026-04-14T15:33:25.636Z",
+    "updatedAt": "2026-04-15T16:07:43.993Z",
     "filename": "01棉花与铁谁重.json"
   }
 }

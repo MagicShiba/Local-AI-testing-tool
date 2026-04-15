@@ -454,7 +454,7 @@ function createTestingCard(item) {
   side.className = "test-side";
   const expectedText = item.question?.expectedAnswer?.trim() ? escapeHtml(item.question.expectedAnswer) : "未设置";
   const noteText = item.question?.note?.trim() ? escapeHtml(item.question.note) : "无";
-  side.innerHTML = `<div class="toolbar"><button type="button" class="runOneBtn">${item.running ? "执行中..." : "测试本题"}</button></div><div class="status-line">${item.running ? "正在按轮次自动测试..." : "就绪"}</div><div class="status-extra"><div>预设答案：${expectedText}</div><div>注释：${noteText}</div></div>`;
+  side.innerHTML = `<div class="toolbar"><button type="button" class="runOneBtn">${item.running ? "执行中..." : "测试本题"}</button></div><div class="status-line">${item.running ? "正在按轮次自动测试..." : "就绪"}</div><div class="status-extra"><div>预设：${expectedText}</div><div>备注：\n${noteText}</div></div>`;
   const runButton = side.querySelector(".runOneBtn");
   runButton.disabled = item.running;
   runButton.addEventListener("click", () => runSingleTest(item.path));
@@ -602,14 +602,10 @@ function renderMessageBubble(role, content, reasoning = "") {
 function renderAssistantAnswer(answer, reasoning = "") {
   const thinkMatch = String(answer).match(/<think>([\s\S]*?)<\/think>/i);
   let visible = String(answer);
-  let finalReasoning = reasoning || "";
   if (thinkMatch) {
     visible = String(answer).replace(thinkMatch[0], "").trim();
-    finalReasoning = finalReasoning || thinkMatch[1];
   }
-  const rendered = renderMarkdown(visible);
-  if (!finalReasoning) return rendered;
-  return `${rendered}<details><summary>思考过程</summary><pre>${escapeHtml(finalReasoning)}</pre></details>`;
+  return renderMarkdown(visible);
 }
 
 async function runSingleTest(questionPath) {

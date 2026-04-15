@@ -14,34 +14,32 @@
 * { box-sizing: border-box; }
 body { margin: 0; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); }
 button, input, textarea, select { font: inherit; }
-button { border: 1px solid var(--line-strong); background: #fff; color: var(--text); border-radius: 8px; padding: 4px 8px; cursor: pointer; }
+button { border: 1px solid var(--line-strong); background: #fff; color: var(--text); border-radius: 8px; padding: 2px 5px; cursor: pointer; }
 button:hover { border-color: var(--primary); color: var(--primary); }
-input, textarea, select { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; background: #fff; }
+input, textarea, select { width: 100%; border: 1px solid var(--line); border-radius: 4px; padding: 1px 4px; background: #fff; }
 textarea { resize: vertical; }
 .hidden { display: none !important; }
 
-.topbar { display: flex; justify-content: space-between; align-items: end; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: #fff; position: sticky; top: 0; z-index: 10; }
-.topbar h1 { margin: 0 0 4px; font-size: 20px; }
+.topbar { display: flex; justify-content: space-between; align-items: end; gap: 8px; padding: 8px 4px; border-bottom: 1px solid var(--line); background: #fff; position: sticky; top: 0; z-index: 10; }
+.topbar h1 { margin: 0 0 2px; font-size: 20px; }
 .topbar p { margin: 0; color: var(--muted); }
 .tabs, .toolbar, .buttons { display: flex; flex-wrap: wrap; gap: 6px; }
 .tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
-main { padding: 10px; }
+main { padding: 2px; }
 .page { display: none; }
 .page.active { display: block; }
 
-.two-column { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 10px; }
+.two-column { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 4px; }
 .testing-header { margin-bottom: 10px; }
 .testing-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end; }
-.testing-controls .field { flex: 1; min-width: 140px; margin-bottom: 0; }
-.testing-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 10px; align-items: start; }
-.sidebar { position: sticky; top: 50px; max-height: calc(100vh - 70px); overflow: hidden; }
-.single-panel, .sidebar, .content { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); padding: 8px; }
+.testing-controls .field {min-width: 140px; margin-bottom: 0; }
+.testing-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 4px; align-items: start; }
+.sidebar { position: sticky; top: 65px; max-height: calc(100vh - 70px); overflow: hidden; }
+.single-panel, .sidebar, .content { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 2px; }
 .testing-main-panel { min-height: calc(100vh - 104px); }
 
-.panel-header { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 8px; }
-.panel-header.inline { margin-top: 10px; }
+.panel-header { display: flex; justify-content: space-between; align-items: center; gap: 6px;}
 .panel-header h2, .panel-header h3, .panel-header h4 { margin: 0; }
-.field, .field-row { margin-bottom: 6px; }
 .field label, .field-row label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 2px; }
 .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .compact-form { margin-bottom: 8px; }
@@ -55,22 +53,26 @@ main { padding: 10px; }
 .empty-state { min-height: 200px; display: grid; place-items: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; }
 
 #tree { max-height: calc(100vh - 220px); overflow: auto; }
-.testing-tree { max-height: calc(100vh - 180px); overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 4px; background: #fff; }
-.tree-set, .tree-folder, .tree-question { padding: 4px 6px; border-radius: 6px; }
+.testing-tree { max-height: calc(100vh - 180px); overflow-y: auto; border: 1px solid var(--line); border-radius: 2px;background: #fff; }
+.tree-set, .tree-folder, .tree-question { padding: 2px 2px; }
 .tree-set { background: #f9fafb; margin-bottom: 4px; border: 1px solid var(--line); }
 .tree-folder { margin: 4px 0 0 6px; background: #fff; border: 1px solid var(--line); }
-.tree-question { margin: 2px 0 0 10px; cursor: pointer; border: 1px solid transparent; }
+.tree-question { margin: 0 0 0 4px; cursor: pointer; border-bottom: 1px solid #33333377; }
 .tree-question:hover, .tree-question.active { border-color: var(--primary); background: var(--primary-soft); }
 .tree-question.dragging { opacity: 0.5; }
 .tree-folder.drop-target { outline: 2px dashed var(--primary); }
-.testing-tree .tree-folder { margin-left: 0; padding: 4px; }
+.testing-tree .tree-folder { margin-left: 0; padding: 2px; }
 .testing-tree .tree-folder-header { display: flex; align-items: center; gap: 4px; cursor: pointer; }
 .testing-tree .tree-folder.collapsed .tree-question { display: none; }
 .testing-tree .tree-folder-toggle { color: var(--muted); width: 12px; display: inline-block; }
 
-.round-card, .part-card, .assistant-card, .test-card { border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin-bottom: 8px; background: #fcfdff; }
+.round-card{ border-radius: 4px; padding: 4px; margin:4px 2px; box-shadow: 1px 1px 2px 2px #00000085;background: #eeeeee;}
+.part-card, .test-card { border: 1px solid var(--line); border-radius: 4px; padding: 4px; margin-bottom: 4px; }
+.assistant-card{border: 1px solid var(--line); border-radius: 4px; padding: 4px; margin-bottom: 4px;background: #aaddbb; }
+
+.user-parts{background: #eeeeaa;}
+
 .part-card.text textarea { background: #f8fafc; }
-.assistant-card textarea { background: #eefdf3; }
 .part-card.image { background: #f8fbff; }
 .part-card.image .part-preview img { max-width: 240px; max-height: 160px; border-radius: 6px; border: 1px solid var(--line); }
 .inline-grid { display: grid; grid-template-columns: 1fr 180px 160px; gap: 6px; align-items: end; margin-bottom: 6px; }
@@ -83,10 +85,10 @@ main { padding: 10px; }
 .test-side { border-left: 1px solid var(--line); padding-left: 8px; }
 .message-controls { margin: 4px 0 6px; display: flex; gap: 6px; flex-wrap: wrap; }
 .message-bubble { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 6px; white-space: pre-wrap; word-break: break-word; }
-.message-system { max-width: 70%; margin: 0 auto 6px; background: #f8fafc; }
-.message-user { max-width: 78%; margin-left: auto; background: #eff6ff; }
-.message-assistant { max-width: 78%; background: #f0fdf4; }
-.message-assistant-wrap { margin-bottom: 6px; }
+.message-system { max-width: 70%; margin: 0 auto 3px; background: #f8fafc; }
+.message-user { max-width: 78%; margin-left: auto; background: #eff6ff;border-right: 2px solid #0077ff; }
+.message-assistant { max-width: 85%; background: #f0fdf4; border-left: 2px solid #00aa55;}
+.message-assistant-wrap { margin-bottom: 3px; }
 .test-card summary { cursor: pointer; list-style: none; }
 .test-card summary::-webkit-details-marker { display: none; }
 .test-header { display: grid; grid-template-columns: minmax(0, 1fr) 88px 88px; align-items: center; gap: 8px; }
@@ -97,7 +99,7 @@ main { padding: 10px; }
 .result-box { border: 1px solid var(--line); border-radius: 6px; padding: 8px; background: #fff; }
 .drawer { border: 1px solid var(--line); border-radius: 6px; padding: 6px; background: #fff; margin-top: 4px; }
 .status-line { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
-.status-extra { font-size: 12px; color: var(--muted); margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
+.status-extra {margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
 .header-score-input { width: 88px; }
 .header-score-label { font-size: 12px; color: var(--muted); margin-bottom: 2px; text-align: right; }
 .header-score-input input { text-align: right; }
@@ -155,4 +157,32 @@ main { padding: 10px; }
   .testing-controls { flex-direction: column; }
   .testing-controls .field { width: 100%; }
   .test-header { grid-template-columns: 1fr; }
+}
+
+/* 针对 class 或 id 为 testingTree 的元素进行设置 */
+#testingTree {
+    /* 如果容器没有固定高度或 overflow 属性，滚动条不会显示 */
+    overflow: auto; 
+}
+
+/* 1. 设置整个滚动条的宽度 */
+#testingTree::-webkit-scrollbar {
+    width: 3px;      /* 垂直滚动条的宽度 */
+    height: 3px;     /* 水平滚动条的高度 */
+}
+
+/* 2. 设置滚动条轨道（底色部分） */
+#testingTree::-webkit-scrollbar-track {
+    background: #aaa; /* 轨道的背景颜色 */
+    border-radius: 2px; /* 如果想要圆角效果 */
+}
+
+/* 3. 设置滑块（用户拖动的部分） */
+#testingTree::-webkit-scrollbar-thumb {
+    background: #444;    /* 滑块的颜色 */
+}
+
+/* 4. 设置滑块悬停时的颜色 (Hover 效果) */
+#testingTree::-webkit-scrollbar-thumb:hover {
+    background: #333;    /* 鼠标移上去时变深 */
 }
