@@ -2,25 +2,26 @@
   "version": 1,
   "title": "",
   "score": 1,
+  "note": "",
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "expectedAnswer": "",
-  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
     {
       "user": {
         "parts": [
           {
             "type": "text",
-            "text": "生成一个简单的时钟html"
+            "text": ""
           }
         ]
       },
       "assistant": []
     }
   ],
+  "checker": "function checkAnswer(回答结果, 预设答案) {\n  return 回答结果.trim() === 预设答案.trim();\n}",
+  "expectedAnswer": "",
   "metadata": {
-    "createdAt": "2026-04-14T13:35:45.399Z",
-    "updatedAt": "2026-04-14T14:09:04.487Z",
-    "filename": "03生成html.json"
+    "createdAt": "2026-04-15T14:13:49.290Z",
+    "updatedAt": "2026-04-15T14:13:49.290Z",
+    "filename": "l临时测试问题.json"
   }
 }

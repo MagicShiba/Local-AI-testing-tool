@@ -3,8 +3,9 @@
   "title": "色盲问题",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
   "expectedAnswer": "A",
-  "checker": "function checkAnswer(answer, context) {\n  const expected = (context.question.expectedAnswer || \"\").trim();\n  if (!expected) {\n    return answer.trim().length > 0;\n  }\n  return answer.trim() === expected;\n}",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
     {
       "user": {
@@ -52,7 +53,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-14T15:13:29.184Z",
-    "updatedAt": "2026-04-14T15:38:37.057Z",
+    "updatedAt": "2026-04-15T14:35:36.595Z",
     "filename": "02色盲问题.json"
   }
 }

@@ -45,6 +45,7 @@ const defaultQuestion = (filename = "问题1.json") => ({
   version: 1,
   title: "",
   score: 1,
+  note: "",
   systemPrompt: "You are a helpful AI assistant.\n使用中文回答用户问题。",
   conversation: [
     {
@@ -59,7 +60,7 @@ const defaultQuestion = (filename = "问题1.json") => ({
       assistant: [],
     },
   ],
-  checker: `function checkAnswer(answer, context) {\n  const expected = (context.question.expectedAnswer || "").trim();\n  if (!expected) {\n    return answer.trim().length > 0;\n  }\n  return answer.trim() === expected;\n}`,
+  checker: `function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}`,
   expectedAnswer: "",
   metadata: {
     createdAt: new Date().toISOString(),
@@ -431,13 +432,17 @@ function evaluateAnswer(question, answer) {
   const maxScore = Number(question.score || 0);
   let passed = false;
   let error = "";
+  const expected = String(question.expectedAnswer || "").trim();
+  const hasExpectedAnswer = expected.length > 0;
   try {
     const fn = new Function(`return (${question.checker || defaultQuestion().checker});`)();
-    passed = Boolean(fn(answer, { question }));
+    if (hasExpectedAnswer) {
+      passed = Boolean(fn(answer, expected, { question }));
+    }
   } catch (err) {
     error = err.message || String(err);
   }
-  return { passed, error, earned: passed ? maxScore : 0, total: maxScore };
+  return { passed, error, earned: passed ? maxScore : 0, total: maxScore, hasExpectedAnswer };
 }
 
 async function readDatasetTree() {

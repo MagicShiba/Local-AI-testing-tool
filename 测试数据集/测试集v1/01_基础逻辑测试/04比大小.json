@@ -1,10 +1,11 @@
 {
   "version": 1,
-  "title": "04比大小 2.11 和 2.2 哪个大？",
+  "title": "比大小 2.11 和 2.2 哪个大？",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "expectedAnswer": "",
-  "checker": "function checkAnswer(answer, context) {\n  // 将输入的 answer 去除空格并转换为字符串（防止传入非字符串类型导致报错）\n  const cleanedAnswer = String(answer || \"\").trim();\n  // 定义允许通过的选项集合\n  const allowedOptions = [\"B\", \"C\", \"D\"];\n  // 检查清洗后的答案是否在允许的集合中\n  return allowedOptions.includes(cleanedAnswer);\n}",
+  "note": "排除A",
+  "expectedAnswer": "A",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n  // 将输入的 answer 去除空格并转换为字符串（防止传入非字符串类型导致报错）\n  const cleanedAnswer = String(answer || \"\").trim();\n  // 定义允许通过的选项集合\n  const allowedOptions = [\"B\", \"C\", \"D\"];\n  // 检查清洗后的答案是否在允许的集合中\n  return allowedOptions.includes(cleanedAnswer);\n}",
   "conversation": [
     {
       "user": {
@@ -36,7 +37,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-14T16:26:07.463Z",
-    "updatedAt": "2026-04-14T16:38:39.021Z",
+    "updatedAt": "2026-04-15T14:40:34.020Z",
     "filename": "04比大小.json"
   }
 }

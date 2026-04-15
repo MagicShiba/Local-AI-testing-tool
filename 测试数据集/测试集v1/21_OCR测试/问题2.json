@@ -4,7 +4,7 @@
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
   "expectedAnswer": "31415926",
-  "checker": "function checkAnswer(answer, context) {\n  const expected = (context.question.expectedAnswer || \"\").trim();\n  if (!expected) {\n    return answer.trim().length > 0;\n  }\n  return answer.trim() === expected;\n}",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
     {
       "user": {

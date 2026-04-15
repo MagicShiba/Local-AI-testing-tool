@@ -4,7 +4,7 @@
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
   "expectedAnswer": "A",
-  "checker": "function checkAnswer(answer, context) {\n  const cleanedAnswer = String(answer || \"\").trim();\n  const allowedOptions = [\"D\", \"E\", \"H\"];\n  return allowedOptions.includes(cleanedAnswer);\n}",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
     {
       "user": {

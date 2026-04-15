@@ -21,6 +21,7 @@ const els = {
   title: document.getElementById("title"),
   score: document.getElementById("score"),
   systemPrompt: document.getElementById("systemPrompt"),
+  note: document.getElementById("note"),
   rounds: document.getElementById("rounds"),
   expectedAnswer: document.getElementById("expectedAnswer"),
   checker: document.getElementById("checker"),
@@ -210,6 +211,7 @@ function renderEditor() {
   els.title.value = question.title || "";
   els.score.value = Number(question.score ?? 1);
   els.systemPrompt.value = question.systemPrompt || "";
+  els.note.value = question.note || "";
   els.expectedAnswer.value = question.expectedAnswer || "";
   els.checker.value = question.checker || "";
   els.rounds.innerHTML = "";
@@ -293,9 +295,10 @@ function collectQuestionFromForm() {
   return {
     version: 1,
     title: els.title.value.trim(),
-    score: Number(els.score.value || 0),
-    systemPrompt: els.systemPrompt.value,
-    expectedAnswer: els.expectedAnswer.value,
+      score: Number(els.score.value || 0),
+      systemPrompt: els.systemPrompt.value,
+      note: els.note.value,
+      expectedAnswer: els.expectedAnswer.value,
     checker: els.checker.value,
     conversation: [...els.rounds.children].map((roundEl) => ({
       user: {
@@ -433,7 +436,7 @@ function renderTestingList() {
 
 function createTestingCard(item) {
   const details = document.createElement("details");
-  details.className = "test-card";
+  details.className = `test-card ${getTestStatusClass(item)}`;
   details.dataset.path = item.path;
   details.open = Boolean(item.open);
   details.addEventListener("toggle", () => {
@@ -441,7 +444,7 @@ function createTestingCard(item) {
   });
 
   const summary = document.createElement("summary");
-  summary.innerHTML = `<div class="test-header"><div><div class="test-title">${escapeHtml(item.title)}</div><div class="test-meta">${escapeHtml(item.folderName)} · ${escapeHtml(item.fileName)}</div></div><div class="score-badge">${Number(item.manualScore ?? item.result?.score?.earned ?? 0)} / ${item.score}</div></div>`;
+  summary.innerHTML = `<div class="test-header"><div><div class="test-title">${escapeHtml(item.title)}</div><div class="test-meta">${escapeHtml(item.folderName)} · ${escapeHtml(item.fileName)}</div></div><div class="score-badge">${Number(item.manualScore ?? item.result?.score?.earned ?? 0)} / ${item.score}</div><div class="header-score-input"><div class="header-score-label">手动分数</div><input class="manualScoreInput" type="number" min="0" step="0.5" /></div></div>`;
   details.appendChild(summary);
 
   const body = document.createElement("div");
@@ -449,12 +452,15 @@ function createTestingCard(item) {
   const conversation = document.createElement("div");
   const side = document.createElement("div");
   side.className = "test-side";
-  side.innerHTML = `<div class="toolbar"><button type="button" class="runOneBtn">${item.running ? "执行中..." : "测试本题"}</button></div><div class="field"><label>手动分数</label><input class="manualScoreInput" type="number" min="0" step="0.5" /></div><div class="status-line">${item.running ? "正在按轮次自动测试..." : "就绪"}</div>`;
+  const expectedText = item.question?.expectedAnswer?.trim() ? escapeHtml(item.question.expectedAnswer) : "未设置";
+  const noteText = item.question?.note?.trim() ? escapeHtml(item.question.note) : "无";
+  side.innerHTML = `<div class="toolbar"><button type="button" class="runOneBtn">${item.running ? "执行中..." : "测试本题"}</button></div><div class="status-line">${item.running ? "正在按轮次自动测试..." : "就绪"}</div><div class="status-extra"><div>预设答案：${expectedText}</div><div>注释：${noteText}</div></div>`;
   const runButton = side.querySelector(".runOneBtn");
   runButton.disabled = item.running;
   runButton.addEventListener("click", () => runSingleTest(item.path));
-  side.querySelector(".manualScoreInput").value = item.manualScore ?? item.result?.score?.earned ?? 0;
-  side.querySelector(".manualScoreInput").addEventListener("change", (event) => {
+  const headerScoreInput = summary.querySelector(".manualScoreInput");
+  headerScoreInput.value = item.manualScore ?? item.result?.score?.earned ?? 0;
+  headerScoreInput.addEventListener("change", (event) => {
     item.manualScore = event.target.value === "" ? null : Number(event.target.value);
     updateScoreSummary();
     refreshTestingView();
@@ -681,7 +687,13 @@ function renderTestingTree() {
   set.folders.forEach((folder) => {
     const folderEl = document.createElement("div");
     folderEl.className = "tree-folder";
-    folderEl.innerHTML = `<div><strong>${escapeHtml(folder.name)}</strong></div>`;
+    folderEl.innerHTML = `<div class="tree-folder-header"><span class="tree-folder-toggle">▾</span><strong>${escapeHtml(folder.name)}</strong></div>`;
+    const header = folderEl.querySelector(".tree-folder-header");
+    const toggle = folderEl.querySelector(".tree-folder-toggle");
+    header.addEventListener("click", () => {
+      folderEl.classList.toggle("collapsed");
+      toggle.textContent = folderEl.classList.contains("collapsed") ? "▸" : "▾";
+    });
     folder.questions.forEach((question) => {
       const qEl = document.createElement("div");
       qEl.className = "tree-question";
@@ -700,7 +712,6 @@ function renderTestingTree() {
 function setTestingSelected(path) {
   state.testingSelectedPath = path;
   highlightSelectedTestingTree();
-  scrollToTestingCard(path);
 }
 
 function highlightSelectedTestingTree() {
@@ -718,6 +729,13 @@ function scrollToTestingCard(path) {
   const item = state.testingItems.find((entry) => entry.path === path);
   if (item) item.open = true;
   card.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function getTestStatusClass(item) {
+  if (!item.result) return "status-unanswered";
+  const score = item.result.score || {};
+  if (!score.hasExpectedAnswer) return "status-unscored";
+  return score.passed ? "status-correct" : "status-wrong";
 }
 
 function getActivePreset() {
