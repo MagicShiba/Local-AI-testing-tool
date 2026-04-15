@@ -97,7 +97,7 @@ main { padding: 2px; }
 .score-badge, .score-summary { font-weight: 600; color: var(--primary); }
 .score-summary { padding: 8px 10px; border-radius: 8px; background: #eef2ff; border: 1px solid #c7d2fe; margin-bottom: 8px; }
 .result-box { border: 1px solid var(--line); border-radius: 6px; padding: 8px; background: #fff; }
-.drawer { border: 1px solid var(--line); border-radius: 6px; padding: 6px; background: #fff; margin-top: 4px; }
+
 .status-line { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
 .status-extra {margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
 .header-score-input { width: 88px; }

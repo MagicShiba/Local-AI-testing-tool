@@ -97,7 +97,7 @@ async function api(path, options = {}) {
 async function loadTree() {
   state.tree = await api("/api/tree");
   renderTree();
-  syncTestingSelectors();
+  await syncTestingSelectors();
 }
 
 function renderTree() {
@@ -327,7 +327,7 @@ async function quickRunCurrentQuestion() {
   await saveQuestion();
   switchPage("testing");
   state.testingSet = getCurrentSetName();
-  syncTestingSelectors();
+  await syncTestingSelectors();
   const item = state.testingItems.find((entry) => entry.path === state.selectedQuestionPath);
   if (item) {
     setTestingSelected(item.path);
@@ -408,7 +408,7 @@ async function saveSettings() {
   renderSettings();
 }
 
-function syncTestingSelectors() {
+async function syncTestingSelectors() {
   els.testingSetSelect.innerHTML = "";
   state.tree.sets.forEach((set) => {
     const option = document.createElement("option");
@@ -419,22 +419,23 @@ function syncTestingSelectors() {
   });
   state.testingSet = els.testingSetSelect.value || state.tree.sets[0]?.name || "";
   if (!state.testingPresetId) state.testingPresetId = state.settings.activePresetId || state.settings.presets[0]?.id || "";
-  renderTestingList();
+  await renderTestingList();
 }
 
-function renderTestingList() {
+async function renderTestingList() {
   const set = state.tree.sets.find((item) => item.name === state.testingSet);
   const items = [];
   if (set) {
-    set.folders.forEach((folder) => folder.questions.forEach((question) => items.push({ path: question.path, title: question.title || question.name, fileName: question.name, folderName: folder.name, score: question.score || 0, open: true, running: false, result: null, manualScore: null, followUpText: "" })));
+    set.folders.forEach((folder) => folder.questions.forEach((question) => items.push({ path: question.path, title: question.title || question.name, fileName: question.name, folderName: folder.name, score: question.score || 0, open: false, running: false, result: null, manualScore: null, followUpText: "" })));
   }
   const oldMap = new Map(state.testingItems.map((item) => [item.path, item]));
   state.testingItems = items.map((item) => ({ ...item, ...(oldMap.get(item.path) || {}) }));
-  refreshTestingView();
+  await refreshTestingView();
   renderTestingTree();
 }
 
-function createTestingCard(item) {
+async function createTestingCard(item) {
+  const questionData = item.question || (await api(`/api/question?path=${encodeURIComponent(item.path)}`)).content;
   const details = document.createElement("details");
   details.className = `test-card ${getTestStatusClass(item)}`;
   details.dataset.path = item.path;
@@ -452,18 +453,18 @@ function createTestingCard(item) {
   const conversation = document.createElement("div");
   const side = document.createElement("div");
   side.className = "test-side";
-  const expectedText = item.question?.expectedAnswer?.trim() ? escapeHtml(item.question.expectedAnswer) : "未设置";
-  const noteText = item.question?.note?.trim() ? escapeHtml(item.question.note) : "无";
+  const expectedText = questionData?.expectedAnswer?.trim() ? escapeHtml(questionData.expectedAnswer) : "未设置";
+  const noteText = questionData?.note?.trim() ? escapeHtml(questionData.note) : "无";
   side.innerHTML = `<div class="toolbar"><button type="button" class="runOneBtn">${item.running ? "执行中..." : "测试本题"}</button></div><div class="status-line">${item.running ? "正在按轮次自动测试..." : "就绪"}</div><div class="status-extra"><div>预设：${expectedText}</div><div>备注：\n${noteText}</div></div>`;
   const runButton = side.querySelector(".runOneBtn");
   runButton.disabled = item.running;
   runButton.addEventListener("click", () => runSingleTest(item.path));
   const headerScoreInput = summary.querySelector(".manualScoreInput");
   headerScoreInput.value = item.manualScore ?? item.result?.score?.earned ?? 0;
-  headerScoreInput.addEventListener("change", (event) => {
+  headerScoreInput.addEventListener("change", async (event) => {
     item.manualScore = event.target.value === "" ? null : Number(event.target.value);
     updateScoreSummary();
-    refreshTestingView();
+    await refreshTestingView();
   });
 
   body.append(conversation, side);
@@ -489,9 +490,10 @@ async function renderQuestionConversation(item, targetEl) {
     buildDraftTranscript(item.question).forEach((entry) => targetEl.appendChild(renderTranscriptEntry(entry)));
   }
 
-  const followWrap = document.createElement("div");
+  const followWrap = document.createElement("details");
   followWrap.className = "drawer";
-  followWrap.innerHTML = `<div class="field"><label>追问</label><textarea class="followUpInput" rows="3" placeholder="会以当前上下文继续提问"></textarea></div><div class="toolbar"><button type="button" class="sendFollowUpBtn">发送追问</button></div>`;
+  followWrap.open = false;
+  followWrap.innerHTML = `<summary style="cursor:pointer;list-style:none;cursor:pointer;">追问 ▾</summary><div class="field"><textarea class="followUpInput" rows="3" placeholder="会以当前上下文继续提问"></textarea></div><div class="toolbar"><button type="button" class="sendFollowUpBtn">发送追问</button></div>`;
   followWrap.querySelector(".followUpInput").value = item.followUpText || "";
   followWrap.querySelector(".followUpInput").addEventListener("input", (event) => {
     item.followUpText = event.target.value;
@@ -615,7 +617,7 @@ async function runSingleTest(questionPath) {
   if (!preset) return;
   if (!item.question) item.question = (await api(`/api/question?path=${encodeURIComponent(questionPath)}`)).content;
   item.running = true;
-  refreshTestingView();
+  await refreshTestingView();
   try {
     item.result = await api("/api/run-test", { method: "POST", body: JSON.stringify({ preset, question: item.question, followUpText: item.followUpText || "" }) });
     item.manualScore = null;
@@ -624,7 +626,7 @@ async function runSingleTest(questionPath) {
     item.result = { answer: "", transcript: [], score: { earned: 0, total: item.score, passed: false, error: error.message } };
   } finally {
     item.running = false;
-    refreshTestingView();
+    await refreshTestingView();
   }
 }
 
@@ -634,14 +636,15 @@ async function runAllTests() {
   }
 }
 
-function refreshTestingView() {
+async function refreshTestingView() {
   const openMap = new Map();
   [...els.testingList.querySelectorAll(".test-card")].forEach((card, index) => openMap.set(state.testingItems[index]?.path, card.open));
   els.testingList.innerHTML = "";
-  state.testingItems.forEach((item) => {
+  for (const item of state.testingItems) {
     if (openMap.has(item.path)) item.open = openMap.get(item.path);
-    els.testingList.appendChild(createTestingCard(item));
-  });
+    const card = await createTestingCard(item);
+    els.testingList.appendChild(card);
+  }
   updateScoreSummary();
   highlightSelectedTestingTree();
 }
@@ -697,7 +700,7 @@ async function loadSelectedResult() {
     const saved = map.get(item.path);
     return saved ? { ...item, result: saved.result || null, manualScore: saved.manualScore, followUpText: saved.followUpText || "" } : item;
   });
-  refreshTestingView();
+  await refreshTestingView();
 }
 
 function renderTestingTree() {
@@ -749,7 +752,9 @@ function scrollToTestingCard(path) {
   card.open = true;
   const item = state.testingItems.find((entry) => entry.path === path);
   if (item) item.open = true;
-  card.scrollIntoView({ behavior: "smooth", block: "start" });
+  const topbarHeight = document.querySelector(".topbar")?.offsetHeight || 60;
+  const y = card.getBoundingClientRect().top + window.scrollY - topbarHeight - 10;
+  window.scrollTo({ top: y, behavior: "smooth" });
 }
 
 function getTestStatusClass(item) {
