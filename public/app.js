@@ -693,14 +693,13 @@ async function loadSelectedResult() {
   const result = await api(`/api/result?id=${encodeURIComponent(id)}`);
   if (result.dataset) {
     state.testingSet = result.dataset;
-    syncTestingSelectors();
   }
   const map = new Map((result.items || []).map((item) => [item.path, item]));
   state.testingItems = state.testingItems.map((item) => {
     const saved = map.get(item.path);
     return saved ? { ...item, result: saved.result || null, manualScore: saved.manualScore, followUpText: saved.followUpText || "" } : item;
   });
-  await refreshTestingView();
+  await renderTestingList();
 }
 
 function renderTestingTree() {
@@ -789,15 +788,172 @@ function escapeHtml(text) {
 }
 
 function renderMarkdown(source) {
-  const escaped = escapeHtml(source);
-  return escaped
-    .replace(/^### (.*)$/gm, "<h3>$1</h3>")
-    .replace(/^## (.*)$/gm, "<h2>$1</h2>")
-    .replace(/^# (.*)$/gm, "<h1>$1</h1>")
-    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
-    .replace(/\n/g, "<br />");
+  if (!source) return "";
+  const md = typeof marked !== 'undefined' ? marked : window.marked;
+  const hl = typeof hljs !== 'undefined' ? hljs : window.hljs;
+  let html = md.parse(source);
+  html = html.replace(/>\s+</g, "><");
+  return enhanceCodeBlocks(html, hl);
+}
+
+function enhanceCodeBlocks(html, hljsLib) {
+  const tempDiv = document.createElement("div");
+  tempDiv.innerHTML = html;
+  const hljs = hljsLib || window.hljs;
+  const totalLinesMap = {};
+
+  tempDiv.querySelectorAll("pre code").forEach((codeBlock, idx) => {
+    const pre = codeBlock.parentElement;
+    if (!pre || pre.parentElement.classList.contains("code-block-wrapper")) return;
+
+    const langMatch = codeBlock.className.match(/language-(\w+)/);
+    const lang = langMatch ? langMatch[1] : "";
+    const code = codeBlock.textContent;
+    const lines = code.split("\n");
+    const lineCount = lines.length;
+    const needsCollapse = lineCount > 10;
+    totalLinesMap["block_" + idx] = lineCount;
+
+    let highlightedCode = code;
+    try {
+      if (lang && hljs.getLanguage(lang)) {
+        highlightedCode = hljs.highlight(code, { language: lang }).value;
+      } else {
+        highlightedCode = hljs.highlightAuto(code).value;
+      }
+    } catch (e) {
+      highlightedCode = escapeHtml(code);
+    }
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "code-block-wrapper";
+
+    const header = document.createElement("div");
+    header.className = "code-block-header";
+
+    if (lang) {
+      const langSpan = document.createElement("span");
+      langSpan.className = "code-lang";
+      langSpan.textContent = lang;
+      header.appendChild(langSpan);
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "code-block-actions";
+
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "code-action-btn copy-btn";
+    copyBtn.textContent = "复制";
+    copyBtn.setAttribute("data-copy", code);
+    actions.appendChild(copyBtn);
+
+    if (lang === "html" || lang === "xml") {
+      const previewBtn = document.createElement("button");
+      previewBtn.type = "button";
+      previewBtn.className = "code-action-btn preview-btn";
+      previewBtn.textContent = "浏览";
+      previewBtn.setAttribute("data-preview", code);
+      actions.appendChild(previewBtn);
+    }
+
+    header.appendChild(actions);
+
+    const codeContent = document.createElement("code");
+    codeContent.className = codeBlock.className;
+    codeContent.innerHTML = highlightedCode;
+
+    const preElement = document.createElement("pre");
+    preElement.appendChild(codeContent);
+
+    if (needsCollapse) {
+      const collapseWrapper = document.createElement("div");
+      collapseWrapper.className = "code-collapse-wrapper";
+
+      const visibleLinesArr = highlightedCode.split("\n").slice(0, 10);
+      const hiddenLinesArr = highlightedCode.split("\n").slice(10);
+
+      const visibleCode = document.createElement("code");
+      visibleCode.className = codeBlock.className;
+      visibleCode.innerHTML = visibleLinesArr.join("\n") + "\n";
+
+      const visiblePre = document.createElement("pre");
+      visiblePre.appendChild(visibleCode);
+
+      const expandBtn = document.createElement("button");
+      expandBtn.type = "button";
+      expandBtn.className = "code-expand-btn";
+      expandBtn.setAttribute("data-lines", lineCount);
+      expandBtn.textContent = `展开全部 (${lineCount} 行)`;
+      expandBtn.setAttribute("data-target", "collapse_" + idx);
+
+      collapseWrapper.appendChild(visiblePre);
+      collapseWrapper.appendChild(expandBtn);
+      if (hiddenLinesArr.length > 0) {
+        const hiddenPre = document.createElement("pre");
+        hiddenPre.style.display = "none";
+        hiddenPre.id = "collapse_" + idx;
+        const hiddenCode = document.createElement("code");
+        hiddenCode.className = codeBlock.className;
+        hiddenCode.innerHTML = hiddenLinesArr.join("\n");
+        hiddenPre.appendChild(hiddenCode);
+        collapseWrapper.appendChild(hiddenPre);
+      }
+
+      pre.replaceWith(wrapper);
+      wrapper.appendChild(header);
+      wrapper.appendChild(collapseWrapper);
+    } else {
+      pre.replaceWith(wrapper);
+      wrapper.appendChild(header);
+      wrapper.appendChild(preElement);
+    }
+  });
+
+  document.addEventListener("click", function(e) {
+    const btn = e.target.closest(".code-action-btn");
+    if (btn) {
+      if (btn.classList.contains("copy-btn")) {
+        const code = btn.getAttribute("data-copy");
+        navigator.clipboard.writeText(code).then(() => {
+          btn.textContent = "已复制";
+          setTimeout(() => btn.textContent = "复制", 2000);
+        }).catch(() => { btn.textContent = "复制失败"; });
+      } else if (btn.classList.contains("preview-btn")) {
+        const code = btn.getAttribute("data-preview");
+        const w = window.open("", "_blank");
+        w.document.write(code);
+        w.document.close();
+      }
+      return;
+    }
+
+    const expandBtn = e.target.closest(".code-expand-btn");
+    if (expandBtn) {
+      const lineCount = expandBtn.getAttribute("data-lines");
+      const targetId = expandBtn.getAttribute("data-target");
+      const wrapper = expandBtn.parentElement;
+      if (wrapper.classList.contains("expanded")) {
+        wrapper.classList.remove("expanded");
+        const hidden = document.getElementById(targetId);
+        if (hidden) hidden.style.display = "none";
+        expandBtn.textContent = `展开全部 (${lineCount} 行)`;
+      } else {
+        wrapper.classList.add("expanded");
+        const hidden = document.getElementById(targetId);
+        if (hidden) hidden.style.display = "block";
+        expandBtn.textContent = "收起";
+      }
+    }
+  });
+
+  Array.from(tempDiv.childNodes).forEach(node => {
+    if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() === "") {
+      tempDiv.removeChild(node);
+    }
+  });
+
+  return tempDiv.innerHTML;
 }
 
 function fileToBase64(file) {

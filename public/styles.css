@@ -56,13 +56,13 @@ main { padding: 2px; }
 .testing-tree { max-height: calc(100vh - 180px); overflow-y: auto; border: 1px solid var(--line); border-radius: 2px;background: #fff; }
 .tree-set, .tree-folder, .tree-question { padding: 2px 2px; }
 .tree-set { background: #f9fafb; margin-bottom: 4px; border: 1px solid var(--line); }
-.tree-folder { margin: 4px 0 0 6px; background: #fff; border: 1px solid var(--line); }
+.tree-folder { margin: 4px 0 0 2px; background: #fff; border: 1px solid var(--line); }
 .tree-question { margin: 0 0 0 4px; cursor: pointer; border-bottom: 1px solid #33333377; }
 .tree-question:hover, .tree-question.active { border-color: var(--primary); background: var(--primary-soft); }
 .tree-question.dragging { opacity: 0.5; }
 .tree-folder.drop-target { outline: 2px dashed var(--primary); }
 .testing-tree .tree-folder { margin-left: 0; padding: 2px; }
-.testing-tree .tree-folder-header { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.testing-tree .tree-folder-header { display: flex; align-items: center;cursor: pointer; background: #add9ff; }
 .testing-tree .tree-folder.collapsed .tree-question { display: none; }
 .testing-tree .tree-folder-toggle { color: var(--muted); width: 12px; display: inline-block; }
 
@@ -85,6 +85,10 @@ main { padding: 2px; }
 .test-side { border-left: 1px solid var(--line); padding-left: 8px; }
 .message-controls { margin: 4px 0 6px; display: flex; gap: 6px; flex-wrap: wrap; }
 .message-bubble { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 6px; white-space: pre-wrap; word-break: break-word; }
+.message-bubble p { margin: 0 0 4px 0; }
+.message-bubble p:last-child { margin-bottom: 0; }
+.message-bubble > * + * { margin-top: 0; }
+.message-bubble > *:not(:first-child) { margin-top: 0; }
 .message-system { max-width: 70%; margin: 0 auto 3px; background: #f8fafc; }
 .message-user { max-width: 78%; margin-left: auto; background: #eff6ff;border-right: 2px solid #0077ff; }
 .message-assistant { max-width: 85%; background: #f0fdf4; border-left: 2px solid #00aa55;}
@@ -185,4 +189,113 @@ main { padding: 2px; }
 /* 4. 设置滑块悬停时的颜色 (Hover 效果) */
 #testingTree::-webkit-scrollbar-thumb:hover {
     background: #333;    /* 鼠标移上去时变深 */
+}
+
+/* 代码块增强样式 */
+.code-block-wrapper {
+  margin: 8px 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: #f6f8fa;
+  border-bottom: 1px solid var(--line);
+}
+
+.code-lang {
+  font-size: 12px;
+  color: var(--muted);
+  font-family: monospace;
+}
+
+.code-block-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.code-action-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.code-action-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.copy-btn {
+  background: #fff;
+}
+
+.preview-btn {
+  background: #f0fdf4;
+}
+
+.code-block-wrapper pre {
+  margin: 0;
+  padding: 12px;
+  background: #fff;
+  overflow-x: auto;
+}
+
+.code-block-wrapper code {
+  font-family: "Consolas", "Monaco", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.code-collapse-wrapper {
+  max-height: 320px;
+  overflow: hidden;
+  position: relative;
+}
+
+.code-collapse-wrapper::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(transparent, #fff);
+  pointer-events: none;
+}
+
+.code-collapse-wrapper.expanded {
+  max-height: none;
+}
+
+.code-collapse-wrapper.expanded::after {
+  display: none;
+}
+
+.code-expand-btn {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  margin-top: 0;
+  border: none;
+  border-top: 1px solid var(--line);
+  background: #f6f8fa;
+  color: var(--primary);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.code-expand-btn:hover {
+  background: var(--primary-soft);
 }
