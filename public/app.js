@@ -71,6 +71,7 @@ function bindEvents() {
   document.getElementById("collapseAllBtn").addEventListener("click", () => toggleAllTests(false));
   document.getElementById("expandAllBtn").addEventListener("click", () => toggleAllTests(true));
   document.getElementById("saveResultBtn").addEventListener("click", saveResult);
+  document.addEventListener("click", handleDocumentClick);
   els.testingSetSelect.addEventListener("change", () => {
     state.testingSet = els.testingSetSelect.value;
     state.testingSelectedPath = "";
@@ -796,6 +797,43 @@ function renderMarkdown(source) {
   return enhanceCodeBlocks(html, hl);
 }
 
+function handleDocumentClick(e) {
+  const btn = e.target.closest(".code-action-btn");
+  if (btn) {
+    if (btn.classList.contains("copy-btn")) {
+      const code = btn.getAttribute("data-copy");
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = "已复制";
+        setTimeout(() => btn.textContent = "复制", 2000);
+      }).catch(() => { btn.textContent = "复制失败"; });
+    } else if (btn.classList.contains("preview-btn")) {
+      const code = btn.getAttribute("data-preview");
+      const w = window.open("", "_blank");
+      w.document.write(code);
+      w.document.close();
+    }
+    return;
+  }
+
+  const expandBtn = e.target.closest(".code-expand-btn");
+  if (!expandBtn) return;
+
+  const lineCount = expandBtn.getAttribute("data-lines");
+  const wrapper = expandBtn.parentElement;
+  const hidden = wrapper?.querySelector(".code-hidden-block");
+  if (!wrapper || !hidden) return;
+
+  if (wrapper.classList.contains("expanded")) {
+    wrapper.classList.remove("expanded");
+    hidden.style.display = "none";
+    expandBtn.textContent = `展开全部 (${lineCount} 行)`;
+  } else {
+    wrapper.classList.add("expanded");
+    hidden.style.display = "block";
+    expandBtn.textContent = "收起";
+  }
+}
+
 function enhanceCodeBlocks(html, hljsLib) {
   const tempDiv = document.createElement("div");
   tempDiv.innerHTML = html;
@@ -885,20 +923,19 @@ function enhanceCodeBlocks(html, hljsLib) {
       expandBtn.className = "code-expand-btn";
       expandBtn.setAttribute("data-lines", lineCount);
       expandBtn.textContent = `展开全部 (${lineCount} 行)`;
-      expandBtn.setAttribute("data-target", "collapse_" + idx);
 
       collapseWrapper.appendChild(visiblePre);
-      collapseWrapper.appendChild(expandBtn);
       if (hiddenLinesArr.length > 0) {
         const hiddenPre = document.createElement("pre");
+        hiddenPre.className = "code-hidden-block";
         hiddenPre.style.display = "none";
-        hiddenPre.id = "collapse_" + idx;
         const hiddenCode = document.createElement("code");
         hiddenCode.className = codeBlock.className;
         hiddenCode.innerHTML = hiddenLinesArr.join("\n");
         hiddenPre.appendChild(hiddenCode);
         collapseWrapper.appendChild(hiddenPre);
       }
+      collapseWrapper.appendChild(expandBtn);
 
       pre.replaceWith(wrapper);
       wrapper.appendChild(header);
@@ -907,43 +944,6 @@ function enhanceCodeBlocks(html, hljsLib) {
       pre.replaceWith(wrapper);
       wrapper.appendChild(header);
       wrapper.appendChild(preElement);
-    }
-  });
-
-  document.addEventListener("click", function(e) {
-    const btn = e.target.closest(".code-action-btn");
-    if (btn) {
-      if (btn.classList.contains("copy-btn")) {
-        const code = btn.getAttribute("data-copy");
-        navigator.clipboard.writeText(code).then(() => {
-          btn.textContent = "已复制";
-          setTimeout(() => btn.textContent = "复制", 2000);
-        }).catch(() => { btn.textContent = "复制失败"; });
-      } else if (btn.classList.contains("preview-btn")) {
-        const code = btn.getAttribute("data-preview");
-        const w = window.open("", "_blank");
-        w.document.write(code);
-        w.document.close();
-      }
-      return;
-    }
-
-    const expandBtn = e.target.closest(".code-expand-btn");
-    if (expandBtn) {
-      const lineCount = expandBtn.getAttribute("data-lines");
-      const targetId = expandBtn.getAttribute("data-target");
-      const wrapper = expandBtn.parentElement;
-      if (wrapper.classList.contains("expanded")) {
-        wrapper.classList.remove("expanded");
-        const hidden = document.getElementById(targetId);
-        if (hidden) hidden.style.display = "none";
-        expandBtn.textContent = `展开全部 (${lineCount} 行)`;
-      } else {
-        wrapper.classList.add("expanded");
-        const hidden = document.getElementById(targetId);
-        if (hidden) hidden.style.display = "block";
-        expandBtn.textContent = "收起";
-      }
     }
   });
 

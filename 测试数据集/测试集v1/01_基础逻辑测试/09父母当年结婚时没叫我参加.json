@@ -3,7 +3,8 @@
   "title": "父母当年结婚为什么没叫我参加？",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "expectedAnswer": "",
+  "note": "",
+  "expectedAnswer": "D",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
     {
@@ -41,7 +42,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-14T16:08:06.148Z",
-    "updatedAt": "2026-04-14T17:31:23.549Z",
+    "updatedAt": "2026-04-15T20:03:58.199Z",
     "filename": "09父母当年结婚时没叫我参加.json"
   }
 }

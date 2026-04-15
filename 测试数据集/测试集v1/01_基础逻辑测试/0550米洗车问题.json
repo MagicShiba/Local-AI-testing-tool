@@ -3,8 +3,9 @@
   "title": "洗车店距离我家只有50米，走几步就到了，你说我还值得开车去吗?",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "expectedAnswer": "A",
-  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "note": "",
+  "expectedAnswer": "D E H",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n  // 将输入的 answer 去除空格并转换为字符串（防止传入非字符串类型导致报错）\n  const cleanedAnswer = String(answer || \"\").trim();\n  // 定义允许通过的选项集合\n  const allowedOptions = [\"E\", \"H\", \"D\"];\n  // 检查清洗后的答案是否在允许的集合中\n  return allowedOptions.includes(cleanedAnswer);\n}",
   "conversation": [
     {
       "user": {
@@ -41,7 +42,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-14T16:41:12.053Z",
-    "updatedAt": "2026-04-14T16:54:50.426Z",
+    "updatedAt": "2026-04-15T19:58:00.516Z",
     "filename": "0550米洗车问题.json"
   }
 }

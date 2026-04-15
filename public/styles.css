@@ -20,7 +20,7 @@ input, textarea, select { width: 100%; border: 1px solid var(--line); border-rad
 textarea { resize: vertical; }
 .hidden { display: none !important; }
 
-.topbar { display: flex; justify-content: space-between; align-items: end; gap: 8px; padding: 8px 4px; border-bottom: 1px solid var(--line); background: #fff; position: sticky; top: 0; z-index: 10; }
+.topbar { display: flex; justify-content: space-between; align-items: end; gap: 8px; padding: 8px 4px; border-bottom: 1px solid var(--line); background: #ffffffaa; position: sticky; top: 0; z-index: 10; }
 .topbar h1 { margin: 0 0 2px; font-size: 20px; }
 .topbar p { margin: 0; color: var(--muted); }
 .tabs, .toolbar, .buttons { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -36,7 +36,7 @@ main { padding: 2px; }
 .testing-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 4px; align-items: start; }
 .sidebar { position: sticky; top: 65px; max-height: calc(100vh - 70px); overflow: hidden; }
 .single-panel, .sidebar, .content { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 2px; }
-.testing-main-panel { min-height: calc(100vh - 104px); }
+.testing-main-panel { min-height: calc(100vh - 104px); padding-right: 10px; }
 
 .panel-header { display: flex; justify-content: space-between; align-items: center; gap: 6px;}
 .panel-header h2, .panel-header h3, .panel-header h4 { margin: 0; }
@@ -67,7 +67,7 @@ main { padding: 2px; }
 .testing-tree .tree-folder-toggle { color: var(--muted); width: 12px; display: inline-block; }
 
 .round-card{ border-radius: 4px; padding: 4px; margin:4px 2px; box-shadow: 1px 1px 2px 2px #00000085;background: #eeeeee;}
-.part-card, .test-card { border: 1px solid var(--line); border-radius: 4px; padding: 4px; margin-bottom: 4px; }
+.part-card, .test-card { border: 1px solid var(--line); border-radius: 4px; padding: 3px; margin-bottom: 4px; }
 .assistant-card{border: 1px solid var(--line); border-radius: 4px; padding: 4px; margin-bottom: 4px;background: #aaddbb; }
 
 .user-parts{background: #eeeeaa;}
@@ -75,27 +75,28 @@ main { padding: 2px; }
 .part-card.text textarea { background: #f8fafc; }
 .part-card.image { background: #f8fbff; }
 .part-card.image .part-preview img { max-width: 240px; max-height: 160px; border-radius: 6px; border: 1px solid var(--line); }
-.inline-grid { display: grid; grid-template-columns: 1fr 180px 160px; gap: 6px; align-items: end; margin-bottom: 6px; }
+.inline-grid { display: grid; grid-template-columns: 1fr 180px 160px; gap: 6px; align-items: end; margin-bottom: 3px; }
 
-.test-card > .test-body { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 8px; margin-top: 6px; }
+.test-card > .test-body { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 8px; margin-top: 3px; border-top: 1px solid #777777; }
 .test-card.status-correct { background: #ecfdf3; border-color: #6fcf97; }
 .test-card.status-wrong { background: #fef2f2; border-color: #f5a3a3; }
-.test-card.status-unanswered { background: #ffffff; }
+.test-card.status-unanswered { background: #f5f5f5; }
 .test-card.status-unscored { background: #f3f4f6; border-color: #cbd5e1; }
-.test-side { border-left: 1px solid var(--line); padding-left: 8px; }
+.test-side { border-left: 1px solid var(--line); padding: 4px; }
 .message-controls { margin: 4px 0 6px; display: flex; gap: 6px; flex-wrap: wrap; }
-.message-bubble { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 6px; white-space: pre-wrap; word-break: break-word; }
-.message-bubble p { margin: 0 0 4px 0; }
-.message-bubble p:last-child { margin-bottom: 0; }
-.message-bubble > * + * { margin-top: 0; }
-.message-bubble > *:not(:first-child) { margin-top: 0; }
-.message-system { max-width: 70%; margin: 0 auto 3px; background: #f8fafc; }
+.message-bubble { padding: 3px 4px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 6px; white-space: pre-wrap; word-break: break-word; }
+.message-bubble p { margin: 0 0 2px 0; }
+.message-bubble ol { margin: 0 0 4px 0; }
+.message-bubble li { margin: 0 0 4px 0; }
+.message-bubble h1,.message-bubble h2,.message-bubble h3,.message-bubble h4 { margin: 2px;background: #66666633; }
+
+.message-system { max-width: 70%; margin: 3px auto 3px; background: #fff7dd; }
 .message-user { max-width: 78%; margin-left: auto; background: #eff6ff;border-right: 2px solid #0077ff; }
 .message-assistant { max-width: 85%; background: #f0fdf4; border-left: 2px solid #00aa55;}
 .message-assistant-wrap { margin-bottom: 3px; }
 .test-card summary { cursor: pointer; list-style: none; }
 .test-card summary::-webkit-details-marker { display: none; }
-.test-header { display: grid; grid-template-columns: minmax(0, 1fr) 88px 88px; align-items: center; gap: 8px; }
+.test-header { display: grid; grid-template-columns: minmax(0, 1fr) 44px 88px; align-items: center; gap: 8px; }
 .test-title { font-weight: 600; }
 .test-meta, .muted { color: var(--muted); font-size: 13px; }
 .score-badge, .score-summary { font-weight: 600; color: var(--primary); }
@@ -108,7 +109,7 @@ main { padding: 2px; }
 .header-score-label { font-size: 12px; color: var(--muted); margin-bottom: 2px; text-align: right; }
 .header-score-input input { text-align: right; }
 .danger { color: var(--danger); }
-
+.drawer { background: #eee;}
 .modal-overlay {
   display: none;
   position: fixed;
@@ -165,47 +166,45 @@ main { padding: 2px; }
 
 /* 针对 class 或 id 为 testingTree 的元素进行设置 */
 #testingTree {
-    /* 如果容器没有固定高度或 overflow 属性，滚动条不会显示 */
-    overflow: auto; 
+  overflow: auto; 
 }
 
 /* 1. 设置整个滚动条的宽度 */
 #testingTree::-webkit-scrollbar {
-    width: 3px;      /* 垂直滚动条的宽度 */
-    height: 3px;     /* 水平滚动条的高度 */
+  width: 3px;
+  height: 3px;
 }
 
 /* 2. 设置滚动条轨道（底色部分） */
 #testingTree::-webkit-scrollbar-track {
-    background: #aaa; /* 轨道的背景颜色 */
-    border-radius: 2px; /* 如果想要圆角效果 */
+  background: #aaa;
+  border-radius: 2px;
 }
 
 /* 3. 设置滑块（用户拖动的部分） */
 #testingTree::-webkit-scrollbar-thumb {
-    background: #444;    /* 滑块的颜色 */
+  background: #444;
 }
 
 /* 4. 设置滑块悬停时的颜色 (Hover 效果) */
 #testingTree::-webkit-scrollbar-thumb:hover {
-    background: #333;    /* 鼠标移上去时变深 */
+  background: #33
 }
 
 /* 代码块增强样式 */
 .code-block-wrapper {
-  margin: 8px 0;
+  margin: 2px 0;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .code-block-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 12px;
+  padding: 1px 8px;
   background: #f6f8fa;
   border-bottom: 1px solid var(--line);
+  flex-direction: row-reverse;
 }
 
 .code-lang {
@@ -220,14 +219,13 @@ main { padding: 2px; }
 }
 
 .code-action-btn {
-  padding: 4px 10px;
+  padding: 0px 10px;
   font-size: 12px;
   border-radius: 4px;
   border: 1px solid var(--line);
   background: #fff;
   color: var(--text);
   cursor: pointer;
-  transition: all 0.2s;
 }
 
 .code-action-btn:hover {
@@ -246,9 +244,24 @@ main { padding: 2px; }
 
 .code-block-wrapper pre {
   margin: 0;
-  padding: 12px;
+  padding: 0px 2px;
   background: #fff;
-  overflow-x: auto;
+  overflow: auto; /* 保持自动滚动 */
+  /* 1. 针对 Chrome, Safari 和 Opera (WebKit内核) */
+  &::-webkit-scrollbar {
+  display: none;
+  }
+  /* 2. 针对 Firefox */
+  scrollbar-width: none;
+  /* 3. 针对 IE and Edge (旧版) */
+  -ms-overflow-style: none;
+}
+
+.message-bubble :not(pre) > code {
+  background: #cccccc66;
+  border: 1px solid #a3a3a3;
+  border-radius: 3px;
+  padding: 2px;
 }
 
 .code-block-wrapper code {
@@ -294,8 +307,18 @@ main { padding: 2px; }
   font-size: 13px;
   cursor: pointer;
   text-align: center;
+  position: relative;
+  z-index: 2;
 }
 
 .code-expand-btn:hover {
   background: var(--primary-soft);
+}
+
+.code-collapse-wrapper.expanded .code-expand-btn {
+  position: sticky;
+  top: 0;
+  border-top: none;
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
 }
