@@ -532,23 +532,33 @@ function renderTranscriptEntry(entry) {
   const wrap = document.createElement("div");
   wrap.className = "message-assistant-wrap";
   wrap.appendChild(renderMessageBubble("assistant", entry.content || (entry.pending ? "_等待模型回答_" : ""), entry.reasoning || ""));
-  if (entry.request) {
-    const controls = document.createElement("div");
-    controls.className = "message-controls";
-    const rawBtn = document.createElement("button");
-    rawBtn.type = "button";
-    rawBtn.textContent = "查看原始提交";
-    const drawer = document.createElement("details");
-    drawer.className = "drawer";
-    drawer.innerHTML = `<summary>请求与响应</summary><pre>${escapeHtml(JSON.stringify({ request: entry.request, response: entry.response }, null, 2))}</pre>`;
-    drawer.open = false;
-    rawBtn.addEventListener("click", () => {
-      drawer.open = !drawer.open;
-    });
-    controls.appendChild(rawBtn);
-    wrap.appendChild(controls);
-    wrap.appendChild(drawer);
-  }
+    if (entry.request) {
+      const controls = document.createElement("div");
+      controls.className = "message-controls";
+      const rawBtn = document.createElement("button");
+      rawBtn.type = "button";
+      rawBtn.textContent = "查看原始提交";
+
+       rawBtn.addEventListener("click", () => {
+         const modalOverlay = document.getElementById('modal-overlay');
+         const modalBody = document.getElementById('modal-body');
+         if (modalOverlay && modalBody) {
+           modalBody.textContent = JSON.stringify({ request: entry.request, response: entry.response }, null, 2);
+           modalOverlay.style.display = 'flex';
+
+           // 点击遮罩层关闭窗口
+           modalOverlay.onclick = (e) => {
+             if (e.target === modalOverlay) {
+               modalOverlay.style.display = 'none';
+             }
+           };
+         }
+       });
+
+      controls.appendChild(rawBtn);
+      wrap.appendChild(controls);
+      // No longer appending drawer to wrap to save space
+    }
   return wrap;
 }
 
