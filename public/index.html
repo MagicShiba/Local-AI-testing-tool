@@ -163,12 +163,11 @@
         </section>
 
         <section class="page" id="page-testing">
-          <div class="testing-layout">
-            <aside class="sidebar">
-              <div class="testing-side-top">
-              <div class="panel-header">
-                <h2>测试执行</h2>
-              </div>
+          <div class="testing-header">
+            <div class="panel-header">
+              <h2>测试执行</h2>
+            </div>
+            <div class="testing-controls">
               <div class="field">
                 <label>测试集</label>
                 <select id="testingSetSelect"></select>
@@ -194,13 +193,14 @@
                 <button id="expandAllBtn">全部展开</button>
                 <button id="saveResultBtn">保存结果</button>
               </div>
-              </div>
-              <div class="testing-side-sticky">
+            </div>
+          </div>
+          <div class="testing-layout">
+            <aside class="sidebar">
               <div id="scoreSummary" class="score-summary">总分：0 / 0</div>
               <div class="field">
                 <label>题目目录</label>
                 <div id="testingTree" class="testing-tree"></div>
-              </div>
               </div>
             </aside>
 

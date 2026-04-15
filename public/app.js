@@ -535,7 +535,7 @@ function renderTranscriptEntry(entry) {
     return wrap;
   }
 
-  const wrap = document.createElement("div");
+const wrap = document.createElement("div");
   wrap.className = "message-assistant-wrap";
   wrap.appendChild(renderMessageBubble("assistant", entry.content || (entry.pending ? "_等待模型回答_" : ""), entry.reasoning || ""));
     if (entry.request) {
@@ -543,25 +543,49 @@ function renderTranscriptEntry(entry) {
       controls.className = "message-controls";
       const rawBtn = document.createElement("button");
       rawBtn.type = "button";
-      rawBtn.textContent = "查看原始提交";
+      rawBtn.textContent = "元数据";
 
        rawBtn.addEventListener("click", () => {
-         const modalOverlay = document.getElementById('modal-overlay');
-         const modalBody = document.getElementById('modal-body');
-         if (modalOverlay && modalBody) {
-           modalBody.textContent = JSON.stringify({ request: entry.request, response: entry.response }, null, 2);
-           modalOverlay.style.display = 'flex';
+          const modalOverlay = document.getElementById('modal-overlay');
+          const modalBody = document.getElementById('modal-body');
+          if (modalOverlay && modalBody) {
+            modalBody.textContent = JSON.stringify({ request: entry.request, response: entry.response }, null, 2);
+            modalOverlay.style.display = 'flex';
 
-           // 点击遮罩层关闭窗口
-           modalOverlay.onclick = (e) => {
-             if (e.target === modalOverlay) {
-               modalOverlay.style.display = 'none';
-             }
-           };
-         }
-       });
+            // 点击遮罩层关闭窗口
+            modalOverlay.onclick = (e) => {
+              if (e.target === modalOverlay) {
+                modalOverlay.style.display = 'none';
+              }
+            };
+          }
+        });
 
       controls.appendChild(rawBtn);
+
+      if (entry.reasoning) {
+        const reasonBtn = document.createElement("button");
+        reasonBtn.type = "button";
+        reasonBtn.textContent = "思考过程";
+
+        reasonBtn.addEventListener("click", () => {
+          const modalOverlay = document.getElementById('modal-overlay');
+          const modalBody = document.getElementById('modal-body');
+          if (modalOverlay && modalBody) {
+            modalBody.textContent = entry.reasoning;
+            modalOverlay.style.display = 'flex';
+
+            modalOverlay.onclick = (e) => {
+              if (e.target === modalOverlay) {
+                modalOverlay.style.display = 'none';
+              }
+            };
+          }
+        });
+
+        controls.appendChild(reasonBtn);
+      }
+
       wrap.appendChild(controls);
       // No longer appending drawer to wrap to save space
     }
@@ -701,6 +725,7 @@ function renderTestingTree() {
       qEl.innerHTML = `<div>${escapeHtml(question.title || question.name)}</div>`;
       qEl.addEventListener("click", () => {
         setTestingSelected(question.path);
+        scrollToTestingCard(question.path);
       });
       folderEl.appendChild(qEl);
     });
