@@ -3,7 +3,7 @@
   "title": "游戏中调用ai的电费计算",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "note": "",
+  "note": "小模型很容易算错",
   "expectedAnswer": "26.32",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
@@ -58,7 +58,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-14T17:00:53.378Z",
-    "updatedAt": "2026-04-16T05:23:22.817Z",
+    "updatedAt": "2026-04-16T09:06:59.962Z",
     "filename": "01简单数学题.json"
   }
 }

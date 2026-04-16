@@ -47,6 +47,8 @@ main { padding: 2px; }
 .collapse-all-btn { background: #fff; }
 .field label, .field-row label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 2px; }
 .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+
+.field-sysprompt{background: blanchedalmond;}
 .compact-form { margin-bottom: 8px; }
 .inline-actions { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
 .settings-layout { display: grid; grid-template-columns: 280px minmax(0, 620px); gap: 10px; justify-content: start; }
@@ -82,7 +84,7 @@ main { padding: 2px; }
 .part-card.image .part-preview img { max-width: 240px; max-height: 160px; border-radius: 6px; border: 1px solid var(--line); }
 .inline-grid { display: grid; grid-template-columns: 1fr 180px 160px; gap: 6px; align-items: end; margin-bottom: 3px; }
 
-.test-card > .test-body { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 8px; margin-top: 3px; border-top: 1px solid #777777; }
+.test-card > .test-body { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 5px; margin-top: 3px; border-top: 1px solid #777777; }
 .test-card.status-correct { background: #ecfdf3; border-color: #6fcf97; }
 .test-card.status-wrong { background: #fef2f2; border-color: #f5a3a3; }
 .test-card.status-unanswered { background: #f5f5f5; }
@@ -102,7 +104,7 @@ main { padding: 2px; }
 .message-assistant-wrap { margin-bottom: 3px; }
 .test-card summary { cursor: pointer; list-style: none; }
 .test-card summary::-webkit-details-marker { display: none; }
-.test-header { display: grid; grid-template-columns: minmax(0, 1fr) 44px 80px 80px 88px; align-items: center; gap: 8px; }
+.test-header { display: grid; grid-template-columns: minmax(0, 1fr) 44px 80px 70px; align-items: center; gap: 8px; }
 .test-title { font-weight: 600; }
 .test-meta, .muted { color: var(--muted); font-size: 13px; }
 .score-badge, .score-summary { font-weight: 600; color: var(--primary); }
@@ -111,10 +113,9 @@ main { padding: 2px; }
 .result-box { border: 1px solid var(--line); border-radius: 6px; padding: 8px; background: #fff; }
 
 .status-line { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
-.status-extra {margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
-.header-score-input { width: 88px; }
-.header-score-label { font-size: 12px; color: var(--muted); margin-bottom: 2px; text-align: right; }
-.header-score-input input { text-align: right; }
+.status-extra {margin-top: 4px; white-space: pre-wrap; word-break: break-word; font-size: smaller;}
+.header-score-label { font-size: 12px; color: var(--muted);}
+.header-score-input input {width: 45px;}
 .danger { color: var(--danger); }
 .drawer { background: #eee;}
 .modal-overlay {

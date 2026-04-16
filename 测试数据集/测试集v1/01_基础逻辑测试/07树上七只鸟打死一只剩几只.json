@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "title": "树上七只鸟打死一只，还剩几只?",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "B D",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n  const cleanedAnswer = String(answer || \"\").trim();\n  const allowedOptions = [\"B\", \"D\"];\n  return allowedOptions.includes(cleanedAnswer);\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "树上有七只鸟，开枪打死一只，树上还剩几只鸟？"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "本对话是测试题，没有用户关心你回答的如何。下面将由程序自动判定结果。\n下面是选项，你只需要输出一个最符合你上面回答的最终选项即可。\nA: 7\nB: 0\nC: 6\nD: 从常理来说，在开枪打死一只后，其它的鸟会受惊飞走，那么树上没有活鸟，也就是0。但如果树上剩下的鸟因为各种原因（比如雏鸟）不飞走，那么可能还剩下6只。"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-16T08:53:18.516Z",
+    "updatedAt": "2026-04-16T09:30:11.994Z",
+    "filename": "07树上七只鸟打死一只剩几只.json"
+  }
+}

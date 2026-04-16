@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "title": "",
+  "title": "干一行行一行，一行行行行行，一行不行，行行不行。",
   "score": 5,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "note": "gan yi hang xing yi hang\nyi hang xing hang hang xing\nyi hang bu xing\nhang hang bu xing\n20字",
+  "note": "gan yi hang xing yi hang （干一行行一行）\nyi hang xing hang hang xing （一行行行行行）\nyi hang bu xing （一行不行）\nhang hang bu xing （行行不行）\n数字数是难点",
   "expectedAnswer": "gan yi hang xing yi hang yi hang xing hang hang xing yi hang bu xing hang hang bu xing\n20",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
@@ -58,7 +58,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-16T05:53:29.626Z",
-    "updatedAt": "2026-04-16T06:08:17.921Z",
+    "updatedAt": "2026-04-16T09:06:16.002Z",
     "filename": "干一行行一行一行行行行行.json"
   }
 }
