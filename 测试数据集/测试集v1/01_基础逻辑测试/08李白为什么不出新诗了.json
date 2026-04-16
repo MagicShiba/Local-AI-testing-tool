@@ -3,6 +3,7 @@
   "title": "李白为什么不出新诗了？",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
   "expectedAnswer": "D",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
@@ -41,7 +42,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-14T15:40:40.986Z",
-    "updatedAt": "2026-04-14T15:44:20.290Z",
+    "updatedAt": "2026-04-16T05:23:59.681Z",
     "filename": "08李白为什么不出新诗了.json"
   }
 }

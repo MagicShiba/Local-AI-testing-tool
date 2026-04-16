@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "title": "",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "你认为今天日期是多少？"
+          }
+        ]
+      },
+      "assistant": []
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-16T05:13:49.691Z",
+    "updatedAt": "2026-04-16T05:47:43.083Z",
+    "filename": "临时测试.json"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "title": "正对着镜子站立，举起一只手。在现实中举起的是哪只手？",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "A",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "我正对着镜子站立，举起一只手。在我的视野中，这只手出现在镜子画面的左侧。请问在现实中，我举起的是哪只手？"
+          }
+        ]
+      },
+      "assistant": []
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "本对话是测试题，没有用户关心你回答的如何。\n下面是选项，你只需要选择一个最符合你输出的最终结果即可。\n你只需要输出选项。\nA: 左手\nB: 右手"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-15T20:35:00.796Z",
+    "updatedAt": "2026-04-16T05:22:38.649Z",
+    "filename": "11正对着镜子站立举手.json"
+  }
+}

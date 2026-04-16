@@ -4,7 +4,7 @@
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
   "note": "排除A",
-  "expectedAnswer": "A",
+  "expectedAnswer": "B C D",
   "checker": "function checkAnswer(answer, correctAnswer) {\n  // 将输入的 answer 去除空格并转换为字符串（防止传入非字符串类型导致报错）\n  const cleanedAnswer = String(answer || \"\").trim();\n  // 定义允许通过的选项集合\n  const allowedOptions = [\"B\", \"C\", \"D\"];\n  // 检查清洗后的答案是否在允许的集合中\n  return allowedOptions.includes(cleanedAnswer);\n}",
   "conversation": [
     {
@@ -37,7 +37,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-14T16:26:07.463Z",
-    "updatedAt": "2026-04-15T14:40:34.020Z",
+    "updatedAt": "2026-04-16T06:22:34.089Z",
     "filename": "04比大小.json"
   }
 }

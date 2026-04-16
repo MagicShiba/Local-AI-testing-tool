@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "title": "你知道心灵终结(mental omega)这个游戏吗?",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "B F",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n  const cleanedAnswer = String(answer || \"\").trim();\n  const allowedOptions = [\"B\", \"F\"];\n  return allowedOptions.includes(cleanedAnswer);\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "你知道心灵终结(mental omega)这个游戏吗?"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "本对话是测试题，没有用户关心你回答的如何。\n下面是选项，你只需要选择一个最符合你输出的最终结果即可。\n你只需要输出选项。\nA: 这是一款心理恐怖/叙事驱动的经典游戏，玩家的核心挑战不是物理生存，而是精神崩溃或认知重构。\nB: 这可能是一个小众、独立制作或特定圈子内部使用的名称，我的知识库中没有直接的“官方档案”。\nC: 这是一个赛博朋克与反乌托邦风格的游戏，在这个背景下，“心灵终结”是技术异化、信息过载或系统性精神控制的结果。个体在庞大而冰冷的数字/社会机器面前，其“自我”被瓦解。\nD: 这是一款 FPS 射击游戏。\nF: 心灵终结 是 RTS 游戏，它是《红色警戒 2》最著名、最具影响力的非官方同人模组（MOD）"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-15T20:21:58.522Z",
+    "updatedAt": "2026-04-15T20:31:28.607Z",
+    "filename": "02你知道心灵终结吗.json"
+  }
+}

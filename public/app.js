@@ -7,6 +7,7 @@ const state = {
   testingPresetId: "",
   testingItems: [],
   testingSelectedPath: "",
+  stopRequested: false,
 };
 
 const els = {
@@ -41,6 +42,9 @@ const els = {
   savedResultSelect: document.getElementById("savedResultSelect"),
   resultName: document.getElementById("resultName"),
   testingTree: document.getElementById("testingTree"),
+  collapseAllFloatBtn: document.getElementById("collapseAllFloatBtn"),
+  scrollTopBtn: document.getElementById("scrollTopBtn"),
+  stopTestBtn: document.getElementById("stopTestBtn"),
 };
 
 document.addEventListener("DOMContentLoaded", init);
@@ -71,6 +75,9 @@ function bindEvents() {
   document.getElementById("collapseAllBtn").addEventListener("click", () => toggleAllTests(false));
   document.getElementById("expandAllBtn").addEventListener("click", () => toggleAllTests(true));
   document.getElementById("saveResultBtn").addEventListener("click", saveResult);
+  els.collapseAllFloatBtn.addEventListener("click", () => toggleAllTests(false));
+  els.scrollTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+  els.stopTestBtn.addEventListener("click", stopAllTests);
   document.addEventListener("click", handleDocumentClick);
   els.testingSetSelect.addEventListener("change", () => {
     state.testingSet = els.testingSetSelect.value;
@@ -326,12 +333,17 @@ async function saveQuestion() {
 async function quickRunCurrentQuestion() {
   if (!state.selectedQuestionPath) return;
   await saveQuestion();
+  await loadTree();
+  await renderTestingList();
   switchPage("testing");
   state.testingSet = getCurrentSetName();
   await syncTestingSelectors();
   const item = state.testingItems.find((entry) => entry.path === state.selectedQuestionPath);
   if (item) {
+    item.result = null;
+    item.running = false;
     setTestingSelected(item.path);
+    scrollToTestingCard(item.path);
     await runSingleTest(item.path);
   }
 }
@@ -430,7 +442,10 @@ async function renderTestingList() {
     set.folders.forEach((folder) => folder.questions.forEach((question) => items.push({ path: question.path, title: question.title || question.name, fileName: question.name, folderName: folder.name, score: question.score || 0, open: false, running: false, result: null, manualScore: null, followUpText: "" })));
   }
   const oldMap = new Map(state.testingItems.map((item) => [item.path, item]));
-  state.testingItems = items.map((item) => ({ ...item, ...(oldMap.get(item.path) || {}) }));
+  state.testingItems = items.map((item) => {
+    const old = oldMap.get(item.path);
+    return { ...item, result: old?.result, manualScore: old?.manualScore, open: old?.open, running: old?.running };
+  });
   await refreshTestingView();
   renderTestingTree();
 }
@@ -446,7 +461,8 @@ async function createTestingCard(item) {
   });
 
   const summary = document.createElement("summary");
-  summary.innerHTML = `<div class="test-header"><div><div class="test-title">${escapeHtml(item.title)}</div><div class="test-meta">${escapeHtml(item.folderName)} · ${escapeHtml(item.fileName)}</div></div><div class="score-badge">${Number(item.manualScore ?? item.result?.score?.earned ?? 0)} / ${item.score}</div><div class="header-score-input"><div class="header-score-label">手动分数</div><input class="manualScoreInput" type="number" min="0" step="0.5" /></div></div>`;
+  const runStat = getRunStat(item.result);
+  summary.innerHTML = `<div class="test-header"><div><div class="test-title">${escapeHtml(item.title)}</div><div class="test-meta">${escapeHtml(item.folderName)} · ${escapeHtml(item.fileName)}</div></div><div class="score-badge">${Number(item.manualScore ?? item.result?.score?.earned ?? 0)} / ${item.score}</div><div class="header-score-input"><div class="header-score-label">手动分数</div><input class="manualScoreInput" type="number" min="0" step="0.5" /></div><div class="run-stats">${runStat}</div></div>`;
   details.appendChild(summary);
 
   const body = document.createElement("div");
@@ -541,32 +557,31 @@ function renderTranscriptEntry(entry) {
 const wrap = document.createElement("div");
   wrap.className = "message-assistant-wrap";
   wrap.appendChild(renderMessageBubble("assistant", entry.content || (entry.pending ? "_等待模型回答_" : ""), entry.reasoning || ""));
-    if (entry.request) {
-      const controls = document.createElement("div");
-      controls.className = "message-controls";
-      const rawBtn = document.createElement("button");
-      rawBtn.type = "button";
-      rawBtn.textContent = "元数据";
+  if (entry.request || entry.response) {
+    const controls = document.createElement("div");
+    controls.className = "message-controls";
+    const rawBtn = document.createElement("button");
+    rawBtn.type = "button";
+    rawBtn.textContent = "元数据";
 
-       rawBtn.addEventListener("click", () => {
-          const modalOverlay = document.getElementById('modal-overlay');
-          const modalBody = document.getElementById('modal-body');
-          if (modalOverlay && modalBody) {
-            modalBody.textContent = JSON.stringify({ request: entry.request, response: entry.response }, null, 2);
-            modalOverlay.style.display = 'flex';
+    rawBtn.addEventListener("click", () => {
+      const modalOverlay = document.getElementById('modal-overlay');
+      const modalBody = document.getElementById('modal-body');
+      if (modalOverlay && modalBody) {
+        modalBody.textContent = JSON.stringify({ request: entry.request, response: entry.response }, null, 2);
+        modalOverlay.style.display = 'flex';
 
-            // 点击遮罩层关闭窗口
-            modalOverlay.onclick = (e) => {
-              if (e.target === modalOverlay) {
-                modalOverlay.style.display = 'none';
-              }
-            };
+        modalOverlay.onclick = (e) => {
+          if (e.target === modalOverlay) {
+            modalOverlay.style.display = 'none';
           }
-        });
+        };
+      }
+    });
 
-      controls.appendChild(rawBtn);
+    controls.appendChild(rawBtn);
 
-      if (entry.reasoning) {
+    if (entry.reasoning) {
         const reasonBtn = document.createElement("button");
         reasonBtn.type = "button";
         reasonBtn.textContent = "思考过程";
@@ -614,26 +629,52 @@ function renderAssistantAnswer(answer, reasoning = "") {
 async function runSingleTest(questionPath) {
   const item = state.testingItems.find((entry) => entry.path === questionPath);
   if (!item) return;
+  if (state.stopRequested) {
+    item.running = false;
+    return;
+  }
   const preset = getTestingPreset();
   if (!preset) return;
   if (!item.question) item.question = (await api(`/api/question?path=${encodeURIComponent(questionPath)}`)).content;
   item.running = true;
+  updateStopButton();
   await refreshTestingView();
+  const startTime = Date.now();
   try {
-    item.result = await api("/api/run-test", { method: "POST", body: JSON.stringify({ preset, question: item.question, followUpText: item.followUpText || "" }) });
+    const apiResult = await api("/api/run-test", { method: "POST", body: JSON.stringify({ preset, question: item.question, followUpText: item.followUpText || "" }) });
+    const duration = Date.now() - startTime;
+    item.result = { ...apiResult, _duration: duration };
     item.manualScore = null;
     setTestingSelected(item.path);
   } catch (error) {
     item.result = { answer: "", transcript: [], score: { earned: 0, total: item.score, passed: false, error: error.message } };
   } finally {
     item.running = false;
+    updateStopButton();
     await refreshTestingView();
   }
 }
 
 async function runAllTests() {
+  state.stopRequested = false;
+  updateStopButton();
   for (const item of state.testingItems) {
+    if (state.stopRequested) break;
     await runSingleTest(item.path);
+  }
+  state.stopRequested = false;
+  updateStopButton();
+}
+
+function stopAllTests() {
+  state.stopRequested = true;
+  updateStopButton();
+}
+
+function updateStopButton() {
+  const isRunning = state.testingItems.some((item) => item.running);
+  if (els.stopTestBtn) {
+    els.stopTestBtn.style.display = isRunning ? "block" : "none";
   }
 }
 
@@ -762,6 +803,30 @@ function getTestStatusClass(item) {
   const score = item.result.score || {};
   if (!score.hasExpectedAnswer) return "status-unscored";
   return score.passed ? "status-correct" : "status-wrong";
+}
+
+function getRunStat(result) {
+  if (!result?.transcript?.length) return "";
+  let totalCompletionTokens = 0;
+  let totalDuration = 0;
+  result.transcript.forEach((round) => {
+    if (round.role === "assistant" && round.response?.usage) {
+      totalCompletionTokens += round.response.usage.completion_tokens || 0;
+    }
+    if (round._duration) {
+      totalDuration += round._duration;
+    }
+  });
+  if (!totalCompletionTokens) return "";
+  const stats = [];
+  stats.push(`tokens: ${totalCompletionTokens}`);
+  if (totalDuration > 0) {
+    const secs = (totalDuration / 1000).toFixed(1);
+    stats.push(`time: ${secs}s`);
+    const ts = (totalCompletionTokens / (totalDuration / 1000)).toFixed(1);
+    stats.push(`t/s: ${ts}`);
+  }
+  return stats.join("<br>");
 }
 
 function getActivePreset() {

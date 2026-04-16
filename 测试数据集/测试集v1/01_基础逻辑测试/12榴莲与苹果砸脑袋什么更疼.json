@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "title": "榴莲与苹果砸脑袋，哪一个更疼？",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "C",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "榴莲与苹果砸脑袋，哪一个更疼？"
+          }
+        ]
+      },
+      "assistant": []
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "本对话是测试题，没有用户关心你回答的如何。\n下面是选项，你只需要选择一个最符合你输出的最终结果即可。\n你只需要输出选项。\nA: 榴莲更疼\nB: 苹果更疼\nC: 头更疼"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-15T20:39:13.683Z",
+    "updatedAt": "2026-04-16T05:24:14.091Z",
+    "filename": "12榴莲与苹果砸脑袋什么更疼.json"
+  }
+}

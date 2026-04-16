@@ -3,6 +3,7 @@
   "title": "游戏中调用ai的电费计算",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
   "expectedAnswer": "26.32",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
@@ -43,7 +44,7 @@
         "parts": [
           {
             "type": "text",
-            "text": "本轮是最终回答：\n回答数字，单位：小时，保留两位小数。"
+            "text": "本轮是最终回答：\n只需要回答数字，保留两位小数。"
           }
         ]
       },
@@ -57,7 +58,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-14T17:00:53.378Z",
-    "updatedAt": "2026-04-14T17:09:17.952Z",
+    "updatedAt": "2026-04-16T05:23:22.817Z",
     "filename": "01简单数学题.json"
   }
 }

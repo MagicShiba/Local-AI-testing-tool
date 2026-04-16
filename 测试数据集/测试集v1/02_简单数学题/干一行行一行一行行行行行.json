@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "title": "",
+  "score": 5,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "gan yi hang xing yi hang\nyi hang xing hang hang xing\nyi hang bu xing\nhang hang bu xing\n20字",
+  "expectedAnswer": "gan yi hang xing yi hang yi hang xing hang hang xing yi hang bu xing hang hang bu xing\n20",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "```\n干一行行一行，一行行行行行，一行不行，行行不行。\n```\n给出这句话的拼音，不包含音调。\n再数一下这句话有多少个汉字。"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "本对话是测试题，没有用户关心你回答的如何。\n你需要在本轮回答中调整答案格式，后面将由程序进行判定。\n输出的第一行为拼音，不带声调，拼音之间使用空格隔开，不包含其它标点。\n输出的第二行为字数，只需要输出数字即可。"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "本轮为正式回答，将交由程序判定。"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-16T05:53:29.626Z",
+    "updatedAt": "2026-04-16T06:08:17.921Z",
+    "filename": "干一行行一行一行行行行行.json"
+  }
+}

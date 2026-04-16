@@ -293,7 +293,9 @@ async function executeQuestion(preset, question, followUpText) {
       }
 
       const requestMessages = cloneJson(messages);
+      const reqStartTime = Date.now();
       const response = await callOpenAI(preset, requestMessages);
+      const reqDuration = Date.now() - reqStartTime;
       const answer = extractAnswerText(response);
       const reasoning = extractReasoningText(response);
       messages.push({ role: "assistant", content: answer });
@@ -308,6 +310,7 @@ async function executeQuestion(preset, question, followUpText) {
           messages: requestMessages,
         },
         response,
+        _duration: reqDuration,
       });
       requests.push({
         model: preset.model,
@@ -331,7 +334,9 @@ async function executeQuestion(preset, question, followUpText) {
     });
 
     const requestMessages = cloneJson(messages);
+    const reqStartTime = Date.now();
     const response = await callOpenAI(preset, requestMessages);
+    const reqDuration = Date.now() - reqStartTime;
     const answer = extractAnswerText(response);
     const reasoning = extractReasoningText(response);
     messages.push({ role: "assistant", content: answer });
@@ -347,6 +352,7 @@ async function executeQuestion(preset, question, followUpText) {
         messages: requestMessages,
       },
       response,
+      _duration: reqDuration,
     });
     requests.push({
       model: preset.model,
@@ -360,13 +366,103 @@ async function executeQuestion(preset, question, followUpText) {
     lastAnswer = answer;
   }
 
+  const lastRequest = requests[requests.length - 1];
+  const conversationRounds = question.conversation || [];
   return {
-    request: requests[requests.length - 1]?.messages ? { model: preset.model, baseUrl: preset.baseUrl, messages: requests[requests.length - 1].messages } : { model: preset.model, baseUrl: preset.baseUrl, messages },
-    response: requests[requests.length - 1]?.response || null,
+    request: lastRequest ? { model: preset.model, baseUrl: preset.baseUrl, messages: lastRequest.messages.map((msg) => cleanMessageForSave(msg, conversationRounds)) } : { model: preset.model, baseUrl: preset.baseUrl, messages },
+    response: lastRequest?.response || null,
     answer: lastAnswer,
     score: evaluateAnswer(question, lastAnswer),
-    transcript,
-    requests,
+    transcript: cleanTranscriptForSave(transcript, conversationRounds),
+  };
+}
+
+function cleanMessageForSave(msg, conversationRounds) {
+  if (msg.role !== "user") return msg;
+  const content = msg.content;
+  if (!Array.isArray(content)) return msg;
+  return { ...msg, content: content.map((item) => {
+    if (item.type !== "image_url" || !item.image_url?.url) return item;
+    const url = item.image_url.url;
+    if (url.startsWith("data:")) {
+      const roundIndex = 0;
+      const round = conversationRounds[roundIndex];
+      const parts = round?.user?.parts || [];
+      const imagePart = parts.find((p) => p.type === "image" && p.assetPath);
+      if (imagePart?.assetPath) {
+        return { type: "image_url", image_url: { url: imagePart.assetPath } };
+      }
+    }
+    return item;
+  }) };
+}
+
+function cleanTranscriptForSave(transcript, conversationRounds) {
+  const result = [];
+  let assistantCount = 0;
+  for (const entry of transcript) {
+    if (entry.role === "system") {
+      result.push({ role: "system", content: entry.content });
+    } else if (entry.role === "user") {
+      const userEntry = { role: "user" };
+      if (Array.isArray(entry.content)) {
+        userEntry.content = entry.content.map((item) => {
+          if (item.type !== "image_url" || !item.image_url?.url) return item;
+          const roundIndex = result.filter((e) => e.role === "user").length;
+          const round = conversationRounds[roundIndex];
+          const parts = round?.user?.parts || [];
+          const imagePart = parts.find((p) => p.type === "image" && p.assetPath);
+          if (imagePart?.assetPath) {
+            return { type: "image_url", image_url: { url: imagePart.assetPath } };
+          }
+          return item;
+        });
+      } else {
+        userEntry.content = entry.content;
+      }
+      result.push(userEntry);
+    } else {
+      assistantCount++;
+      const isLastAssistant = transcript.filter((e) => e.role === "assistant").indexOf(entry) === transcript.filter((e) => e.role === "assistant").length - 1;
+      const cleaned = { role: "assistant", mode: entry.mode, content: entry.content, reasoning: entry.reasoning, _duration: entry._duration };
+      if (entry.request) {
+        cleaned.request = cleanRequestMessagesForSave(entry.request, conversationRounds);
+      }
+      if (entry.response) {
+        cleaned.response = entry.response;
+      }
+      if (isLastAssistant) {
+        cleaned.answer = entry.content;
+      }
+      result.push(cleaned);
+    }
+  }
+  return result;
+}
+
+function cleanRequestMessagesForSave(request, conversationRounds) {
+  if (!request?.messages) return request;
+  return {
+    ...request,
+    messages: request.messages.map((msg) => {
+      if (msg.role !== "user") return msg;
+      const content = msg.content;
+      if (!Array.isArray(content)) return msg;
+      return { ...msg, content: content.map((item) => {
+        if (item.type !== "image_url" || !item.image_url?.url) return item;
+        const url = item.image_url.url;
+        if (url.startsWith("data:")) {
+          const roundIndex = request.messages.slice(0, request.messages.indexOf(msg)).filter((m) => m.role === "user").length;
+          const round = conversationRounds[roundIndex];
+          const parts = round?.user?.parts || [];
+          const imagePart = parts.find((p) => p.type === "image" && p.assetPath);
+          if (imagePart?.assetPath) {
+            return { type: "image_url", image_url: { url: imagePart.assetPath } };
+          }
+        }
+        return item;
+      }) };
+    }),
   };
 }
 
@@ -434,10 +530,11 @@ function evaluateAnswer(question, answer) {
   let error = "";
   const expected = String(question.expectedAnswer || "").trim();
   const hasExpectedAnswer = expected.length > 0;
+  const cleanedAnswer = String(answer || "").trim();
   try {
     const fn = new Function(`return (${question.checker || defaultQuestion().checker});`)();
     if (hasExpectedAnswer) {
-      passed = Boolean(fn(answer, expected, { question }));
+      passed = Boolean(fn(cleanedAnswer, expected, { question }));
     }
   } catch (err) {
     error = err.message || String(err);

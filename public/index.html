@@ -64,7 +64,7 @@
             </aside>
 
             <section class="content">
-              <div class="panel-header">
+              <div class="panel-header sticky">
                 <h2>题目编辑</h2>
                 <div class="toolbar">
                   <button id="quickRunQuestionBtn">测试本题</button>
@@ -206,6 +206,11 @@
 
             <section class="single-panel testing-main-panel">
               <div id="testingList"></div>
+              <div class="floating-controls">
+                <button id="scrollTopBtn" class="scroll-top-btn">回到顶部</button>
+                <button id="collapseAllFloatBtn" class="collapse-all-btn">全部折叠</button>
+                <button id="stopTestBtn" class="stop-test-btn" style="display:none; background:#fef2f2; color:#b42318; border-color:#b42318;">停止测试</button>
+              </div>
             </section>
           </div>
         </section>

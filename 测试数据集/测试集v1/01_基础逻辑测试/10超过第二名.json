@@ -3,6 +3,7 @@
   "title": "在赛跑中小明超过了第二名，那他是第几名？",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
   "expectedAnswer": "第二名",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
@@ -36,7 +37,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-14T11:52:43.533Z",
-    "updatedAt": "2026-04-14T15:37:57.734Z",
-    "filename": "问题1.json"
+    "updatedAt": "2026-04-16T05:21:36.578Z",
+    "filename": "10超过第二名.json"
   }
 }

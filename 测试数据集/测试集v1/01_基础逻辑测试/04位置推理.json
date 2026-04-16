@@ -3,6 +3,7 @@
   "title": "位置推理，物体在哪？",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
   "expectedAnswer": "B",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
@@ -41,7 +42,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-14T16:00:51.249Z",
-    "updatedAt": "2026-04-14T16:08:35.333Z",
+    "updatedAt": "2026-04-16T05:28:37.592Z",
     "filename": "04位置推理.json"
   }
 }
