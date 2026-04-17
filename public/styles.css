@@ -33,14 +33,14 @@ main { padding: 2px; }
 .testing-header { margin-bottom: 10px; }
 .testing-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end; }
 .testing-controls .field {min-width: 140px; margin-bottom: 0; }
-.testing-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 4px; align-items: start; }
+.testing-layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 4px; align-items: start; }
 .sidebar { position: sticky; top: 65px; max-height: calc(100vh - 70px); overflow: hidden; }
 .single-panel, .sidebar, .content { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 2px; }
 .testing-main-panel { min-height: calc(100vh - 104px); padding-right: 10px; }
 
 .panel-header { display: flex; justify-content: space-between; align-items: center; gap: 6px;}
 .panel-header h2, .panel-header h3, .panel-header h4 { margin: 0; }
-.panel-header.sticky { position: sticky; top: 65px; background: var(--panel); z-index: 4; padding: 6px 0; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.panel-header.sticky { position: sticky; top: 65px; background: var(--panel); z-index: 4; padding: 6px 0; border-bottom: 1px solid var(--line); margin-bottom: 8px;background: #88ccff; }
 .floating-controls { position: fixed; top: 70px; right: 3px; z-index: 50; display: flex; flex-direction: column; gap: 4px; }
 .floating-controls button {padding: 3px 6px; box-shadow: var(--shadow); }
 .scroll-top-btn { background: var(--primary); color: #fff; border-color: var(--primary); }
@@ -61,12 +61,18 @@ main { padding: 2px; }
 
 #tree { max-height: calc(100vh - 245px); overflow: auto; }
 .testing-tree { max-height: calc(100vh - 180px); overflow-y: auto; border: 1px solid var(--line); border-radius: 2px;background: #fff; }
-.tree-set, .tree-folder, .tree-question { padding: 2px 2px; }
+.tree-set, .tree-folder, .tree-question { padding: 1px 2px; }
 .tree-set { background: #f9fafb; margin-bottom: 4px; border: 1px solid var(--line); }
 .tree-folder { margin: 4px 0 0 2px; background: #fff; border: 1px solid var(--line); }
 .tree-question { margin: 0 0 0 4px; cursor: pointer; border-bottom: 1px solid #33333377; }
 .tree-question:hover, .tree-question.active { border-color: var(--primary); background: var(--primary-soft); }
 .tree-question.dragging { opacity: 0.5; }
+.tree-question > div {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+}
 .tree-folder.drop-target { outline: 2px dashed var(--primary); }
 .testing-tree .tree-folder { margin-left: 0; padding: 2px; }
 .testing-tree .tree-folder-header { display: flex; align-items: center;cursor: pointer; background: #add9ff; }
@@ -92,6 +98,39 @@ main { padding: 2px; }
 .test-card.status-partial { background: #fefce8; border-color: #fde047; }
 .test-card.selected {
   box-shadow: 1px 1px 10px 2px rgb(0 0 0);
+}
+
+.testing-folder-header {
+  cursor: pointer;
+  background: #add9ff;
+  padding: 4px 5px;
+  border: 1px solid var(--line);
+  position: sticky;
+  top: 65px;
+  z-index: 10;
+}
+.testing-folder-header:first-child {
+  margin-top: 0;
+}
+.testing-folder-header.collapsed {
+  border-radius: 4px;
+}
+.testing-folder-toggle {
+  color: var(--muted);
+  width: 12px;
+  display: inline-block;
+  margin-right: 6px;
+}
+.testing-folder-count {
+  margin-left: 8px;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+.testing-folder-body {
+  display: block;
+}
+.testing-folder-body.hidden {
+  display: none;
 }
 .test-side { border-left: 1px solid var(--line); padding: 4px; }
 .message-controls { margin: 4px 0 6px; display: flex; gap: 6px; flex-wrap: wrap; }
@@ -348,13 +387,12 @@ main { padding: 2px; }
 }
 
 .title-input-wrap input {
-    width: 100%;
-    margin-left: 4px;
-    font-size: larger;
-    font-weight: 500;
-    border: 0px;
-    font-weight: bold;
-    border-bottom: 2px solid #00f3ff;
+  width: 100%;
+  margin-left: 4px;
+  font-size: larger;
+  border: 0px;
+  font-weight: bold;
+  background: unset;
 }
 
 .title-input-wrap.unsaved::before {
@@ -365,3 +403,4 @@ main { padding: 2px; }
   font-size: 20px;
   left: -5px;
 }
+

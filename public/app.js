@@ -993,11 +993,42 @@ async function refreshTestingView() {
   const openMap = new Map();
   [...els.testingList.querySelectorAll(".test-card")].forEach((card, index) => openMap.set(state.testingItems[index]?.path, card.open));
   els.testingList.innerHTML = "";
+  
+  const itemsByFolder = {};
   for (const item of state.testingItems) {
-    if (openMap.has(item.path)) item.open = openMap.get(item.path);
-    const card = await createTestingCard(item);
-    els.testingList.appendChild(card);
+    const folder = item.folderName || "未分组";
+    if (!itemsByFolder[folder]) itemsByFolder[folder] = [];
+    itemsByFolder[folder].push(item);
   }
+  
+  const folderOrder = Object.keys(itemsByFolder).sort((a, b) => a.localeCompare(b, "zh-Hans-CN"));
+  
+  for (const folderName of folderOrder) {
+    const folderHeader = document.createElement("div");
+    folderHeader.className = "testing-folder-header";
+    folderHeader.innerHTML = `<span class="testing-folder-toggle">▾</span><strong>${escapeHtml(folderName)}</strong><span class="testing-folder-count">(${itemsByFolder[folderName].length}题)</span>`;
+    folderHeader.addEventListener("click", () => {
+      folderHeader.classList.toggle("collapsed");
+      const toggle = folderHeader.querySelector(".testing-folder-toggle");
+      toggle.textContent = folderHeader.classList.contains("collapsed") ? "▸" : "▾";
+      const folderBody = document.querySelector(`.testing-folder-body[data-folder="${cssEscape(folderName)}"]`);
+      if (folderBody) folderBody.classList.toggle("hidden", folderHeader.classList.contains("collapsed"));
+    });
+    els.testingList.appendChild(folderHeader);
+    
+    const folderBody = document.createElement("div");
+    folderBody.className = "testing-folder-body";
+    folderBody.dataset.folder = folderName;
+    
+    for (const item of itemsByFolder[folderName]) {
+      if (openMap.has(item.path)) item.open = openMap.get(item.path);
+      const card = await createTestingCard(item);
+      folderBody.appendChild(card);
+    }
+    
+    els.testingList.appendChild(folderBody);
+  }
+  
   updateScoreSummary();
   highlightSelectedTestingTree();
   highlightSelectedCard(state.testingSelectedPath);
@@ -1010,6 +1041,14 @@ function updateScoreSummary() {
 }
 
 function toggleAllTests(expanded) {
+  [...els.testingList.querySelectorAll(".testing-folder-header")].forEach((header) => {
+    header.classList.toggle("collapsed", !expanded);
+    const toggle = header.querySelector(".testing-folder-toggle");
+    toggle.textContent = expanded ? "▾" : "▸";
+    const folderName = header.querySelector("strong")?.textContent;
+    const folderBody = document.querySelector(`.testing-folder-body[data-folder="${cssEscape(folderName)}"]`);
+    if (folderBody) folderBody.classList.toggle("hidden", !expanded);
+  });
   [...els.testingList.querySelectorAll(".test-card")].forEach((el, index) => {
     el.open = expanded;
     if (state.testingItems[index]) state.testingItems[index].open = expanded;
