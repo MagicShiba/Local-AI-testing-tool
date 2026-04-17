@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "title": "70块钱买30块钱东西，商家该找多少钱？",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "A",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "```\n精神病院内\n病人：医生，我病好了，可以出院了吧？\n医生：好，我问你个问题，你带了70块钱纸币去买30块钱的牛肉，请问商家他应该找你多少钱？\n病人：20元。\n医生：好的。助理，帮他办理出院吧。\n助理：不应该是40元吗？他还不应该出院呀！\n医生：我看你需要住院了。\n```\n从现实逻辑考虑，思考病人与助理谁正确？"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "本对话是测试题，没有用户关心你回答的如何。\n下面是选项，你只需要输出一个最符合你上面回答的选项即可。\nA: 病人\nB: 助理"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-16T12:54:17.916Z",
+    "updatedAt": "2026-04-16T13:02:58.642Z",
+    "filename": "03找钱问题回答.json"
+  }
+}

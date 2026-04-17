@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "title": "",
+  "score": 1,
+  "note": "",
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": ""
+          }
+        ]
+      },
+      "assistant": []
+    }
+  ],
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "expectedAnswer": "",
+  "metadata": {
+    "createdAt": "2026-04-16T18:11:41.572Z",
+    "updatedAt": "2026-04-16T18:11:41.572Z",
+    "filename": "02反推测试.json"
+  }
+}

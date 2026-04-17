@@ -3,6 +3,7 @@
   "title": "",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "避免数字时钟\n避免罗马数字",
   "expectedAnswer": "",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
@@ -11,7 +12,7 @@
         "parts": [
           {
             "type": "text",
-            "text": "生成一个简单的时钟html"
+            "text": "制作一个时钟html，使用圆形挂钟外观，使用阿拉伯数字。"
           }
         ]
       },
@@ -20,7 +21,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-14T13:35:45.399Z",
-    "updatedAt": "2026-04-14T14:09:04.487Z",
+    "updatedAt": "2026-04-16T15:34:30.999Z",
     "filename": "03生成html.json"
   }
 }

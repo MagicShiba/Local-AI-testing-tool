@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "title": "识图和逻辑错误检查",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "图中反映了什么问题？"
+          },
+          {
+            "type": "image",
+            "assetPath": "测试集v1/assets/ocr-逻辑推断.png"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-14T12:30:49.574Z",
+    "updatedAt": "2026-04-16T11:41:19.347Z",
+    "filename": "01ocr和逻辑检查.json"
+  }
+}

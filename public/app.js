@@ -292,7 +292,7 @@ function refreshImagePreview(wrap) {
 function createAssistantEditor(item) {
   const wrap = document.createElement("div");
   wrap.className = "assistant-card";
-  wrap.innerHTML = `<div class="inline-grid"><div class="field"><label>助手回答模式</label><select class="assistant-mode"><option value="generate">留空时由模型生成</option><option value="seed">视作已有助手回答</option><option value="continue">作为助手续写上下文</option></select></div><div></div><div class="field buttons"><button type="button" class="removeAssistantBtn">删除</button></div></div><div class="field"><label>助手回答内容</label><textarea class="assistant-content" rows="2"></textarea></div>`;
+  wrap.innerHTML = `<div class="inline-grid"><div class="field"><label>助手回答模式</label><select class="assistant-mode"><option value="generate">留空时由模型生成</option><option value="seed">视作已有助手回答</option><option value="continue">作为助手续写上下文</option></select></div><div></div><div class="field buttons"><button type="button" class="removeAssistantBtn">删除</button></div></div><div class="field"><label>助手回答内容</label><textarea class="assistant-content" rows="1"></textarea></div>`;
   wrap.querySelector(".assistant-mode").value = item.mode || "generate";
   wrap.querySelector(".assistant-content").value = item.content || "";
   wrap.querySelector(".removeAssistantBtn").addEventListener("click", () => wrap.remove());
@@ -462,7 +462,8 @@ async function createTestingCard(item) {
 
   const summary = document.createElement("summary");
   const runStat = getRunStat(item.result);
-  summary.innerHTML = `<div class="test-header"><div><div class="test-title">${escapeHtml(item.title)}</div><div class="test-meta">${escapeHtml(item.folderName)} · ${escapeHtml(item.fileName)}</div></div><div class="score-badge">${Number(item.manualScore ?? item.result?.score?.earned ?? 0)} / ${item.score}</div><div class="header-score-input"><div class="header-score-label">手动分数</div><input class="manualScoreInput" type="number" min="0" step="0.5" /></div><div class="run-stats">${runStat}</div></div>`;
+  const fullScore = item.score;
+  summary.innerHTML = `<div class="test-header"><div><div class="test-title">${escapeHtml(item.title)}</div><div class="test-meta">${escapeHtml(item.folderName)} · ${escapeHtml(item.fileName)}</div></div><div class="score-badge">${Number(item.manualScore ?? item.result?.score?.earned ?? 0)} / ${item.score}</div><div class="header-score-input"><div class="header-score-label">手动分数</div><div class="score-input-row"><input class="manualScoreInput" type="number" min="0" step="0.5" /><div class="quick-score-btns"><button type="button" class="quick-score-btn" data-score="${fullScore}">对</button><button type="button" class="quick-score-btn" data-score="0">错</button><button type="button" class="quick-score-btn" data-score="${fullScore / 2}">半</button></div></div></div><div class="run-stats">${runStat}</div></div>`;
   details.appendChild(summary);
 
   const body = document.createElement("div");
@@ -482,6 +483,16 @@ async function createTestingCard(item) {
     item.manualScore = event.target.value === "" ? null : Number(event.target.value);
     updateScoreSummary();
     await refreshTestingView();
+  });
+  const quickScoreBtns = summary.querySelectorAll(".quick-score-btn");
+  quickScoreBtns.forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const score = Number(btn.dataset.score);
+      item.manualScore = score;
+      headerScoreInput.value = score;
+      updateScoreSummary();
+      await refreshTestingView();
+    });
   });
 
   body.append(conversation, side);
@@ -822,9 +833,9 @@ function getRunStat(result) {
   stats.push(`tokens: ${totalCompletionTokens}`);
   if (totalDuration > 0) {
     const secs = (totalDuration / 1000).toFixed(1);
-    stats.push(`time: ${secs}s`);
+    stats.push(`耗时: ${secs} s`);
     const ts = (totalCompletionTokens / (totalDuration / 1000)).toFixed(1);
-    stats.push(`t/s: ${ts}`);
+    stats.push(`速度: ${ts} t/s`);
   }
   return stats.join("<br>");
 }

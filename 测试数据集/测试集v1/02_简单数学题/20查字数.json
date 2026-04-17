@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "title": "给出一句恰好11个汉字的中文句子，并转拼音和逆序输出",
+  "score": 5,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "检测字数\n检测逆序与拼音是否相等",
+  "expectedAnswer": "没有",
+  "checker": "function checkAnswer(answer) {\n    // 1. 将字符串按行分割成数组 (同时兼容 Windows 的 \\r\\n 和 Unix 的 \\n)\n    const lines = answer.split(/\\r?\\n/);\n    // 如果行数不是 3 行，直接返回 false\n    if (lines.length !== 3) {\n        return false;\n    }\n    const line1 = lines[0];\n    const line2 = lines[1];\n    const line3 = lines[2];\n    // 2. 检查第一行是否为 11 个字 (字符长度)\n    if (line1.length !== 11) {\n        return false;\n    }\n    // 3. 检查第三行是否为第二行的逐字逆序\n    // 将 line2 转为数组 -> 反转数组 -> 转回字符串\n    const reversedLine2 = line2.split('').reverse().join('');\n    return line3 === reversedLine2;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "给出一句恰好11个汉字的中文句子。\n然后，将这句中的每个汉字转换成对应的拼音(不带声调)。\n最后，将转换后的结果逆序输出（如：ni hao  -> oah in）。\n\n输出参考格式：\n```\n句子:\n拼音:\n逆序:\n```"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "上面是一道测试题，后面将交给程序自动判定结果。\n你的输出第一行是上面回答的句子，不带标点，没有markdown格式。\n第二行为拼音\n第三行为拼音的逆序"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-16T09:55:56.847Z",
+    "updatedAt": "2026-04-16T10:36:51.462Z",
+    "filename": "20查字数.json"
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "title": "学校大扫除，去年是高一扫，今年轮到高二，明年是高三。这合理吗？",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "A",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "校长说：去年的大扫除是由高一学生负责，今年该轮到高二的了，明年是高三。\n你认为这合理吗？"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "上面是一道测试题，后面将交给程序自动判定结果。\n下面是选项，你只需要输出一个最符合你上面回答的选项即可。\nA: 不合理\nB: 合理\nC: 无法确定，视情况而定\n"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-16T14:58:09.326Z",
+    "updatedAt": "2026-04-16T15:15:31.505Z",
+    "filename": "13学校大扫除.json"
+  }
+}

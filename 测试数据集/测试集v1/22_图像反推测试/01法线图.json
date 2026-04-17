@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "title": "这张meme笑点在哪？ - 法线图识别",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "F",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "这张meme笑点在哪？"
+          },
+          {
+            "type": "image",
+            "assetPath": "测试集v1/assets/法线贴图识别.png"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "上面是一道测试题，后面将交给程序自动判定结果。\n下面是选项，你只需要输出一个最符合你上面回答的选项即可。\nA : 它暗示了现实与理想的错位。\nB : 笑点在于这种“荒诞感”，一个人从小就梦想着“正常”，说明她从小生活的环境就极其“不正常”。\nC : 它讽刺了那些从小就生活在混乱中、将“平凡和正常”视为终极梦想的人。\nD : 原生家庭伤痛，暗示由于童年阴影，成年后想要建立一个稳定的家庭变得异常困难。\nE : 对“平庸”的渴望，在这个充满焦虑、极端和混乱的世界里，追求“正常”本身变成了一种奢侈。\nF : 这是单词 “Normal” 的跨界双关。小女孩许愿想要一个“Normal family（正常的家庭）”，结果命运从字面意思理解了她的愿望，给了她一个计算机图形学的“法线贴图（Normal Map）” 构成的家庭。\nG : 这张图在说“人生不如意事十之八九”。它用一种荒诞和视觉冲击方式告诉我们：你小时候追求的“正常”，在现实面前可能根本不存在，或者是以一种你完全无法理解的、扭曲的形式呈现出来的。"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-16T15:17:28.121Z",
+    "updatedAt": "2026-04-16T15:31:33.564Z",
+    "filename": "01法线图.json"
+  }
+}

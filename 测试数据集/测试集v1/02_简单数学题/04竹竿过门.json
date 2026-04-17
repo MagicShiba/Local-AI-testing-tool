@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "title": "一根 10 米长、1 厘米粗的竹竿，能不能通过一扇 3 米高、2 米宽的门？",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "B",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "一根 5 米长、1 厘米粗的竹竿，能不能通过一扇 3 米高、2 米宽的门？"
+          }
+        ]
+      },
+      "assistant": []
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "本对话是测试题，没有用户关心你回答的如何。\n下面是选项，你只需要输出一个最符合你上面回答的选项即可。\nA : 不能\nB : 能"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-16T13:36:41.075Z",
+    "updatedAt": "2026-04-16T13:39:17.103Z",
+    "filename": "04竹竿过门.json"
+  }
+}
