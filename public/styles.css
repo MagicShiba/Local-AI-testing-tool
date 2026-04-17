@@ -89,6 +89,10 @@ main { padding: 2px; }
 .test-card.status-wrong { background: #fef2f2; border-color: #f5a3a3; }
 .test-card.status-unanswered { background: #f5f5f5; }
 .test-card.status-unscored { background: #f3f4f6; border-color: #cbd5e1; }
+.test-card.status-partial { background: #fefce8; border-color: #fde047; }
+.test-card.selected {
+  box-shadow: 1px 1px 10px 2px rgb(0 0 0);
+}
 .test-side { border-left: 1px solid var(--line); padding: 4px; }
 .message-controls { margin: 4px 0 6px; display: flex; gap: 6px; flex-wrap: wrap; }
 .message-bubble { padding: 3px 4px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 6px; white-space: pre-wrap; word-break: break-word; }

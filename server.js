@@ -230,7 +230,10 @@ async function handleApi(req, res, url) {
     const body = await readJsonBody(req);
     const preset = body.preset || {};
     const question = body.question || {};
-    const execution = await executeQuestion(preset, question, body.followUpText || "");
+    const followUpText = body.followUpText || "";
+    const step = body.step;
+    const preserveMetadata = body.preserveMetadata !== false;
+    const execution = await executeQuestion(preset, question, followUpText, step, preserveMetadata);
     return respondJson(res, 200, execution);
   }
 
@@ -255,7 +258,7 @@ async function serveDatasetFile(res, url) {
   fs.createReadStream(fullPath).pipe(res);
 }
 
-async function executeQuestion(preset, question, followUpText) {
+async function executeQuestion(preset, question, followUpText, step = null, preserveMetadata = true) {
   const messages = [];
   const transcript = [];
   const requests = [];
@@ -266,7 +269,13 @@ async function executeQuestion(preset, question, followUpText) {
     transcript.push({ role: "system", content: question.systemPrompt });
   }
 
-  for (const round of question.conversation || []) {
+  const conversationRounds = question.conversation || [];
+  const maxStep = step !== null ? step : conversationRounds.length + (followUpText ? 1 : 0);
+
+  for (let roundIdx = 0; roundIdx < conversationRounds.length; roundIdx++) {
+    if (step !== null && roundIdx >= step) break;
+
+    const round = conversationRounds[roundIdx];
     const userContent = await toUserContent(round.user?.parts || []);
     const userMessage = { role: "user", content: userContent };
     messages.push(userMessage);
@@ -324,7 +333,7 @@ async function executeQuestion(preset, question, followUpText) {
     }
   }
 
-  if (followUpText) {
+  if (followUpText && (step === null || step >= conversationRounds.length)) {
     const followUpMessage = { role: "user", content: followUpText };
     messages.push(followUpMessage);
     transcript.push({
@@ -366,14 +375,10 @@ async function executeQuestion(preset, question, followUpText) {
     lastAnswer = answer;
   }
 
-  const lastRequest = requests[requests.length - 1];
-  const conversationRounds = question.conversation || [];
   return {
-    request: lastRequest ? { model: preset.model, baseUrl: preset.baseUrl, messages: lastRequest.messages.map((msg) => cleanMessageForSave(msg, conversationRounds)) } : { model: preset.model, baseUrl: preset.baseUrl, messages },
-    response: lastRequest?.response || null,
     answer: lastAnswer,
     score: evaluateAnswer(question, lastAnswer),
-    transcript: cleanTranscriptForSave(transcript, conversationRounds),
+    transcript: preserveMetadata ? transcript : cleanTranscriptForSave(transcript, conversationRounds),
   };
 }
 
@@ -399,7 +404,9 @@ function cleanMessageForSave(msg, conversationRounds) {
 
 function cleanTranscriptForSave(transcript, conversationRounds) {
   const result = [];
-  let assistantCount = 0;
+  const assistantEntries = transcript.filter((e) => e.role === "assistant");
+  const lastAssistantIndex = assistantEntries.length - 1;
+
   for (const entry of transcript) {
     if (entry.role === "system") {
       result.push({ role: "system", content: entry.content });
@@ -422,13 +429,22 @@ function cleanTranscriptForSave(transcript, conversationRounds) {
       }
       result.push(userEntry);
     } else {
-      assistantCount++;
-      const isLastAssistant = transcript.filter((e) => e.role === "assistant").indexOf(entry) === transcript.filter((e) => e.role === "assistant").length - 1;
-      const cleaned = { role: "assistant", mode: entry.mode, content: entry.content, reasoning: entry.reasoning, _duration: entry._duration };
-      if (entry.request) {
+      const currentAssistantIndex = assistantEntries.indexOf(entry);
+      const isLastAssistant = currentAssistantIndex === lastAssistantIndex;
+      const cleaned = {
+        role: "assistant",
+        mode: entry.mode,
+        content: entry.content,
+        reasoning: entry.reasoning,
+        _duration: entry._duration,
+      };
+      if (isLastAssistant && entry.response) {
+        cleaned.meta = buildAssistantMeta(entry.response);
+      }
+      if (isLastAssistant && entry.request) {
         cleaned.request = cleanRequestMessagesForSave(entry.request, conversationRounds);
       }
-      if (entry.response) {
+      if (isLastAssistant && entry.response) {
         cleaned.response = entry.response;
       }
       if (isLastAssistant) {
@@ -438,6 +454,23 @@ function cleanTranscriptForSave(transcript, conversationRounds) {
     }
   }
   return result;
+}
+
+function buildAssistantMeta(response) {
+  const choice = response?.choices?.[0] || {};
+  const meta = {
+    id: response?.id || "",
+    object: response?.object || "",
+    created: response?.created || null,
+    model: response?.model || "",
+    finish_reason: choice?.finish_reason || "",
+    usage: response?.usage || null,
+  };
+  const hasReasoningContent = choice?.message?.reasoning_content != null;
+  if (hasReasoningContent) {
+    meta.reasoning_content = choice.message.reasoning_content;
+  }
+  return meta;
 }
 
 function cleanRequestMessagesForSave(request, conversationRounds) {

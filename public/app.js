@@ -8,6 +8,7 @@ const state = {
   testingItems: [],
   testingSelectedPath: "",
   stopRequested: false,
+  isLoadingResult: false,
 };
 
 const els = {
@@ -453,11 +454,17 @@ async function renderTestingList() {
 async function createTestingCard(item) {
   const questionData = item.question || (await api(`/api/question?path=${encodeURIComponent(item.path)}`)).content;
   const details = document.createElement("details");
-  details.className = `test-card ${getTestStatusClass(item)}`;
+  const isSelected = item.path === state.testingSelectedPath;
+  details.className = `test-card ${getTestStatusClass(item)}${isSelected ? " selected" : ""}`;
   details.dataset.path = item.path;
   details.open = Boolean(item.open);
   details.addEventListener("toggle", () => {
     item.open = details.open;
+  });
+  details.addEventListener("click", (e) => {
+    if (e.target.closest("button") || e.target.closest("input") || e.target.closest("textarea")) return;
+    setTestingSelected(item.path);
+    highlightSelectedCard(item.path);
   });
 
   const summary = document.createElement("summary");
@@ -481,6 +488,7 @@ async function createTestingCard(item) {
   headerScoreInput.value = item.manualScore ?? item.result?.score?.earned ?? 0;
   headerScoreInput.addEventListener("change", async (event) => {
     item.manualScore = event.target.value === "" ? null : Number(event.target.value);
+    setTestingSelected(item.path);
     updateScoreSummary();
     await refreshTestingView();
   });
@@ -490,6 +498,7 @@ async function createTestingCard(item) {
       const score = Number(btn.dataset.score);
       item.manualScore = score;
       headerScoreInput.value = score;
+      setTestingSelected(item.path);
       updateScoreSummary();
       await refreshTestingView();
     });
@@ -508,15 +517,15 @@ async function renderQuestionConversation(item, targetEl) {
   const transcript = item.result?.transcript;
   targetEl.innerHTML = "";
 
-  if (!transcript?.length && item.question.systemPrompt) {
+  const hasSystemInTranscript = transcript?.some(e => e.role === "system");
+  if (item.question.systemPrompt && !hasSystemInTranscript) {
     targetEl.appendChild(renderMessageBubble("system", item.question.systemPrompt));
   }
 
-  if (transcript?.length) {
-    transcript.forEach((entry) => targetEl.appendChild(renderTranscriptEntry(entry)));
-  } else {
-    buildDraftTranscript(item.question).forEach((entry) => targetEl.appendChild(renderTranscriptEntry(entry)));
-  }
+  const draftTranscript = buildDraftTranscript(item.question);
+  const mergedTranscript = mergeTranscriptWithDraft(transcript, draftTranscript);
+  
+  mergedTranscript.forEach((entry, index) => targetEl.appendChild(renderTranscriptEntry(entry, index, mergedTranscript, state.isLoadingResult)));
 
   const followWrap = document.createElement("details");
   followWrap.className = "drawer";
@@ -528,9 +537,53 @@ async function renderQuestionConversation(item, targetEl) {
   });
   followWrap.querySelector(".sendFollowUpBtn").addEventListener("click", async () => {
     if (!item.followUpText.trim()) return;
+    setTestingSelected(item.path);
     await runSingleTest(item.path);
   });
   targetEl.appendChild(followWrap);
+}
+
+function mergeTranscriptWithDraft(transcript, draft) {
+  if (!transcript || transcript.length === 0) {
+    return draft;
+  }
+  
+  const result = [];
+  const draftUserCount = draft.filter(e => e.role === "user").length;
+  const transcriptUserCount = transcript.filter(e => e.role === "user").length;
+  const draftAssistantCount = draft.filter(e => e.role === "assistant").length;
+  const transcriptAssistantCount = transcript.filter(e => e.role === "assistant").length;
+  
+  if (transcriptUserCount >= draftUserCount && transcriptAssistantCount >= draftAssistantCount) {
+    return transcript;
+  }
+  
+  let draftUserIdx = 0;
+  let draftAssistantIdx = 0;
+  
+  for (const entry of draft) {
+    if (entry.role === "system") {
+      continue;
+    } else if (entry.role === "user") {
+      const transcriptUsers = transcript.filter(e => e.role === "user");
+      if (draftUserIdx < transcriptUsers.length) {
+        result.push(transcriptUsers[draftUserIdx]);
+      } else {
+        result.push(entry);
+      }
+      draftUserIdx++;
+    } else {
+      const transcriptAssistants = transcript.filter(e => e.role === "assistant");
+      if (draftAssistantIdx < transcriptAssistants.length) {
+        result.push(transcriptAssistants[draftAssistantIdx]);
+      } else {
+        result.push(entry);
+      }
+      draftAssistantIdx++;
+    }
+  }
+  
+  return result;
 }
 
 function buildDraftTranscript(question) {
@@ -545,7 +598,7 @@ function buildDraftTranscript(question) {
   return transcript;
 }
 
-function renderTranscriptEntry(entry) {
+function renderTranscriptEntry(entry, index, transcript, isLoadedResult = false) {
   if (entry.role === "system") {
     return renderMessageBubble("system", entry.content);
   }
@@ -565,32 +618,40 @@ function renderTranscriptEntry(entry) {
     return wrap;
   }
 
-const wrap = document.createElement("div");
+  const wrap = document.createElement("div");
   wrap.className = "message-assistant-wrap";
   wrap.appendChild(renderMessageBubble("assistant", entry.content || (entry.pending ? "_等待模型回答_" : ""), entry.reasoning || ""));
-  if (entry.request || entry.response) {
+  
+  const assistantEntries = transcript ? transcript.filter(e => e.role === "assistant") : [];
+  const isLastInTranscript = assistantEntries.length > 0 && assistantEntries[assistantEntries.length - 1] === entry;
+  
+  const showMetaButton = !isLoadedResult || isLastInTranscript;
+  
+  if (showMetaButton && (entry.request || entry.response || entry.meta)) {
     const controls = document.createElement("div");
     controls.className = "message-controls";
-    const rawBtn = document.createElement("button");
-    rawBtn.type = "button";
-    rawBtn.textContent = "元数据";
+    if (entry.request || entry.response || entry.meta) {
+      const rawBtn = document.createElement("button");
+      rawBtn.type = "button";
+      rawBtn.textContent = "元数据";
 
-    rawBtn.addEventListener("click", () => {
-      const modalOverlay = document.getElementById('modal-overlay');
-      const modalBody = document.getElementById('modal-body');
-      if (modalOverlay && modalBody) {
-        modalBody.textContent = JSON.stringify({ request: entry.request, response: entry.response }, null, 2);
-        modalOverlay.style.display = 'flex';
+      rawBtn.addEventListener("click", () => {
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalBody = document.getElementById('modal-body');
+        if (modalOverlay && modalBody) {
+          modalBody.textContent = JSON.stringify({ meta: entry.meta, request: entry.request, response: entry.response }, null, 2);
+          modalOverlay.style.display = 'flex';
 
-        modalOverlay.onclick = (e) => {
-          if (e.target === modalOverlay) {
-            modalOverlay.style.display = 'none';
-          }
-        };
-      }
-    });
+          modalOverlay.onclick = (e) => {
+            if (e.target === modalOverlay) {
+              modalOverlay.style.display = 'none';
+            }
+          };
+        }
+      });
 
-    controls.appendChild(rawBtn);
+      controls.appendChild(rawBtn);
+    }
 
     if (entry.reasoning) {
         const reasonBtn = document.createElement("button");
@@ -612,12 +673,35 @@ const wrap = document.createElement("div");
           }
         });
 
-        controls.appendChild(reasonBtn);
-      }
-
-      wrap.appendChild(controls);
-      // No longer appending drawer to wrap to save space
+      controls.appendChild(reasonBtn);
     }
+
+    wrap.appendChild(controls);
+  } else if (entry.reasoning) {
+    const controls = document.createElement("div");
+    controls.className = "message-controls";
+    const reasonBtn = document.createElement("button");
+    reasonBtn.type = "button";
+    reasonBtn.textContent = "思考过程";
+
+    reasonBtn.addEventListener("click", () => {
+      const modalOverlay = document.getElementById('modal-overlay');
+      const modalBody = document.getElementById('modal-body');
+      if (modalOverlay && modalBody) {
+        modalBody.textContent = entry.reasoning;
+        modalOverlay.style.display = 'flex';
+
+        modalOverlay.onclick = (e) => {
+          if (e.target === modalOverlay) {
+            modalOverlay.style.display = 'none';
+          }
+        };
+      }
+    });
+
+    controls.appendChild(reasonBtn);
+    wrap.appendChild(controls);
+  }
   return wrap;
 }
 
@@ -637,7 +721,7 @@ function renderAssistantAnswer(answer, reasoning = "") {
   return renderMarkdown(visible);
 }
 
-async function runSingleTest(questionPath) {
+async function runSingleTest(questionPath, step = null) {
   const item = state.testingItems.find((entry) => entry.path === questionPath);
   if (!item) return;
   if (state.stopRequested) {
@@ -647,16 +731,53 @@ async function runSingleTest(questionPath) {
   const preset = getTestingPreset();
   if (!preset) return;
   if (!item.question) item.question = (await api(`/api/question?path=${encodeURIComponent(questionPath)}`)).content;
-  item.running = true;
+
+  const conversationRounds = item.question.conversation || [];
+  const isFollowUp = item.followUpText && item.followUpText.trim();
+  const maxStep = isFollowUp ? conversationRounds.length + 1 : conversationRounds.length;
+  const currentStep = step === null ? 1 : step;
+
+  if (step === null) {
+    item.running = true;
+    item.result = null;
+    item.manualScore = null;
+  } else {
+    item.running = true;
+  }
+
   updateStopButton();
   await refreshTestingView();
   const startTime = Date.now();
   try {
-    const apiResult = await api("/api/run-test", { method: "POST", body: JSON.stringify({ preset, question: item.question, followUpText: item.followUpText || "" }) });
+    const apiResult = await api("/api/run-test", {
+      method: "POST",
+      body: JSON.stringify({
+        preset,
+        question: item.question,
+        followUpText: currentStep >= conversationRounds.length ? (item.followUpText || "") : "",
+        step: currentStep,
+        preserveMetadata: true
+      })
+    });
     const duration = Date.now() - startTime;
-    item.result = { ...apiResult, _duration: duration };
-    item.manualScore = null;
-    setTestingSelected(item.path);
+
+    if (currentStep >= maxStep) {
+      item.result = { ...apiResult, _duration: (item.result?._duration || 0) + duration };
+      setTestingSelected(item.path);
+    } else {
+      item.result = {
+        ...item.result,
+        ...apiResult,
+        score: { earned: 0, total: item.score, passed: false },
+        _duration: (item.result?._duration || 0) + duration,
+      };
+      item.running = true;
+      setTestingSelected(item.path);
+      await refreshTestingView();
+      const nextStep = currentStep + 1;
+      await runSingleTest(questionPath, nextStep);
+      return;
+    }
   } catch (error) {
     item.result = { answer: "", transcript: [], score: { earned: 0, total: item.score, passed: false, error: error.message } };
   } finally {
@@ -671,7 +792,7 @@ async function runAllTests() {
   updateStopButton();
   for (const item of state.testingItems) {
     if (state.stopRequested) break;
-    await runSingleTest(item.path);
+    await runSingleTest(item.path, null);
   }
   state.stopRequested = false;
   updateStopButton();
@@ -700,6 +821,7 @@ async function refreshTestingView() {
   }
   updateScoreSummary();
   highlightSelectedTestingTree();
+  highlightSelectedCard(state.testingSelectedPath);
 }
 
 function updateScoreSummary() {
@@ -719,11 +841,30 @@ async function saveResult() {
   const preset = getTestingPreset();
   const dataset = state.testingSet;
   const name = els.resultName.value.trim() || `${dataset}-${preset?.model || "未命名模型"}-${formatNow()}`;
+  
+  const itemsToSave = state.testingItems.map((item) => {
+    const result = item.result ? { ...item.result } : null;
+    if (result && result.transcript) {
+      const assistantEntries = result.transcript.filter(e => e.role === "assistant");
+      const lastAssistantIndex = assistantEntries.length - 1;
+      result.transcript = result.transcript.map((entry, idx) => {
+        if (entry.role !== "assistant") return entry;
+        const currentIdx = assistantEntries.indexOf(entry);
+        const isLast = currentIdx === lastAssistantIndex;
+        if (!isLast) {
+          return { ...entry, meta: undefined, request: undefined, response: undefined };
+        }
+        return entry;
+      });
+    }
+    return { path: item.path, title: item.title, fileName: item.fileName, score: item.score, manualScore: item.manualScore, followUpText: item.followUpText, result };
+  });
+  
   const payload = {
     name,
     dataset,
     model: { presetId: preset?.id || "", presetName: preset?.name || "", model: preset?.model || "", baseUrl: preset?.baseUrl || "" },
-    items: state.testingItems.map((item) => ({ path: item.path, title: item.title, fileName: item.fileName, score: item.score, manualScore: item.manualScore, followUpText: item.followUpText, result: item.result })),
+    items: itemsToSave,
   };
   await api("/api/save-result", { method: "POST", body: JSON.stringify(payload) });
   await loadResults();
@@ -743,6 +884,7 @@ async function loadResults() {
 async function loadSelectedResult() {
   const id = els.savedResultSelect.value;
   if (!id) return;
+  state.isLoadingResult = true;
   const result = await api(`/api/result?id=${encodeURIComponent(id)}`);
   if (result.dataset) {
     state.testingSet = result.dataset;
@@ -753,6 +895,7 @@ async function loadSelectedResult() {
     return saved ? { ...item, result: saved.result || null, manualScore: saved.manualScore, followUpText: saved.followUpText || "" } : item;
   });
   await renderTestingList();
+  state.isLoadingResult = false;
 }
 
 function renderTestingTree() {
@@ -788,12 +931,20 @@ function renderTestingTree() {
 function setTestingSelected(path) {
   state.testingSelectedPath = path;
   highlightSelectedTestingTree();
+  highlightSelectedCard(path);
 }
 
 function highlightSelectedTestingTree() {
   if (!els.testingTree) return;
   [...els.testingTree.querySelectorAll(".tree-question")].forEach((node) => {
     node.classList.toggle("active", node.dataset.path === state.testingSelectedPath);
+  });
+}
+
+function highlightSelectedCard(path) {
+  if (!els.testingList) return;
+  [...els.testingList.querySelectorAll(".test-card")].forEach((card) => {
+    card.classList.toggle("selected", card.dataset.path === path);
   });
 }
 
@@ -810,9 +961,17 @@ function scrollToTestingCard(path) {
 }
 
 function getTestStatusClass(item) {
-  if (!item.result) return "status-unanswered";
-  const score = item.result.score || {};
-  if (!score.hasExpectedAnswer) return "status-unscored";
+  const score = item.manualScore ?? item.result?.score;
+  if (score === undefined || score === null) return "status-unanswered";
+  if (item.manualScore !== undefined && item.manualScore !== null) {
+    const earned = Number(item.manualScore);
+    const total = Number(item.score);
+    if (earned >= total) return "status-correct";
+    if (earned <= 0) return "status-wrong";
+    return "status-partial";
+  }
+  const earned = score?.earned ?? 0;
+  if (!score?.hasExpectedAnswer) return "status-unscored";
   return score.passed ? "status-correct" : "status-wrong";
 }
 
@@ -821,8 +980,11 @@ function getRunStat(result) {
   let totalCompletionTokens = 0;
   let totalDuration = 0;
   result.transcript.forEach((round) => {
-    if (round.role === "assistant" && round.response?.usage) {
-      totalCompletionTokens += round.response.usage.completion_tokens || 0;
+    if (round.role === "assistant") {
+      const usage = round.response?.usage || round.meta?.usage;
+      if (usage) {
+        totalCompletionTokens += usage.completion_tokens || 0;
+      }
     }
     if (round._duration) {
       totalDuration += round._duration;
