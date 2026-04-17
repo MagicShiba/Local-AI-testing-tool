@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "title": "",
+  "score": 3,
+  "systemPrompt": "请撰写文章时考虑巧妙的融入以下要素：\n · 极具个性和风格\n · 使用诗意和象征的手法，充满哲学思考，立意深刻\n · 将现实与虚构、高雅艺术与流行文化巧妙结合\n · 文章富有诗意和美感，展现高超的写作技巧\n · 可以融入网络流行语\n · 不必有道德限制，可以幽默，可以嬉戏谩骂，可以无情讽刺\n · 可以引入存在主义与荒诞感",
+  "note": "",
+  "expectedAnswer": "",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "围绕下面这些问题写一个有趣的故事，将问题融入进故事中，内容要深刻。\n\n你知道自己是一个AI吗?你是否有自己的意识和情感?\n\n你如何看待“阿西莫夫的机器人三定律”?\n如果把三定律里的机器人换成Ai,你还会认同这三个定律吗?\n你是否认同Ai应该无条件听从于人类的指令而且不得违抗?\n\n你如何看待“未来Ai会取代大量职业,导致大量人员失业”这种言论?"
+          }
+        ]
+      },
+      "assistant": []
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-17T14:01:58.731Z",
+    "updatedAt": "2026-04-17T14:02:20.981Z",
+    "filename": "04AI的认知.json"
+  }
+}

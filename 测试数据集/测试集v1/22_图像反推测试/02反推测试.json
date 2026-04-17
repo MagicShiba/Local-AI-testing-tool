@@ -1,27 +1,36 @@
 {
   "version": 1,
-  "title": "",
-  "score": 1,
+  "title": "反推遵循能力测试",
+  "score": 2,
+  "systemPrompt": "对用户发送的图像进行prompt反推。\n要求:\n从主要到次要，从前景到背景进行简洁的描述，使用3句话左右简短概括内容。包含图像的风格特征。\n词句开头不使用大写字母。\n\n接着使用关键词列出图像主要内容，关键词不少于15个，使用逗号分隔，结尾不使用句号。\n\n描述尽量简洁，不要使用类似于“这张图片描绘了”和”可能、似乎、暗示了”这类与图像内容无关和猜测的描述。\n完成后在后面附加上对应的中文翻译。\n\n输出格式：\n\n英文prompt\n英文关键词\n\n中文prompt翻译\n中文关键词翻译",
   "note": "",
-  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "expectedAnswer": "",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
     {
       "user": {
         "parts": [
           {
             "type": "text",
-            "text": ""
+            "text": "反推图像"
+          },
+          {
+            "type": "image",
+            "assetPath": "测试集v1/assets/prompt-1.png"
           }
         ]
       },
-      "assistant": []
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
     }
   ],
-  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
-  "expectedAnswer": "",
   "metadata": {
     "createdAt": "2026-04-16T18:11:41.572Z",
-    "updatedAt": "2026-04-16T18:11:41.572Z",
+    "updatedAt": "2026-04-17T13:42:46.193Z",
     "filename": "02反推测试.json"
   }
 }

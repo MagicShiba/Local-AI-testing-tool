@@ -59,7 +59,7 @@ main { padding: 2px; }
 .preset-card-meta { color: var(--muted); font-size: 12px; word-break: break-all; }
 .empty-state { min-height: 200px; display: grid; place-items: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; }
 
-#tree { max-height: calc(100vh - 220px); overflow: auto; }
+#tree { max-height: calc(100vh - 245px); overflow: auto; }
 .testing-tree { max-height: calc(100vh - 180px); overflow-y: auto; border: 1px solid var(--line); border-radius: 2px;background: #fff; }
 .tree-set, .tree-folder, .tree-question { padding: 2px 2px; }
 .tree-set { background: #f9fafb; margin-bottom: 4px; border: 1px solid var(--line); }
@@ -96,11 +96,11 @@ main { padding: 2px; }
 .test-side { border-left: 1px solid var(--line); padding: 4px; }
 .message-controls { margin: 4px 0 6px; display: flex; gap: 6px; flex-wrap: wrap; }
 .message-bubble { padding: 3px 4px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 6px; white-space: pre-wrap; word-break: break-word; }
-.message-bubble p { margin: 0 0 2px 0; }
+.message-bubble p { margin: 4px 0 4px 0; }
 .message-bubble ol { margin: 0 0 4px 0; }
 .message-bubble li { margin: 0 0 4px 0; }
-.message-bubble ul { margin: 0 0 4px 0; }
-.message-bubble h1,.message-bubble h2,.message-bubble h3,.message-bubble h4 { margin: 2px;background: #66666633; }
+.message-bubble ul { margin: 0 0 8px 0; }
+.message-bubble h1,.message-bubble h2,.message-bubble h3,.message-bubble h4 { margin: 4px;background: #66666633; }
 
 .message-system { max-width: 70%; margin: 3px auto 3px; background: #fff7dd; }
 .message-user { max-width: 78%; margin-left: auto; background: #eff6ff;border-right: 2px solid #0077ff; }
@@ -338,4 +338,30 @@ main { padding: 2px; }
   border-top: none;
   border-bottom: 1px solid var(--line);
   box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
+}
+
+.title-input-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.title-input-wrap input {
+    width: 100%;
+    margin-left: 4px;
+    font-size: larger;
+    font-weight: 500;
+    border: 0px;
+    font-weight: bold;
+    border-bottom: 2px solid #00f3ff;
+}
+
+.title-input-wrap.unsaved::before {
+  content: "!!";
+  color: var(--danger);
+  font-weight: bold;
+  position: absolute;
+  font-size: 20px;
+  left: -5px;
 }

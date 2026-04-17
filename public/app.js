@@ -9,6 +9,7 @@ const state = {
   testingSelectedPath: "",
   stopRequested: false,
   isLoadingResult: false,
+  hasUnsavedChanges: false,
 };
 
 const els = {
@@ -89,9 +90,40 @@ function bindEvents() {
     state.testingPresetId = els.testingPresetSelect.value;
   });
   els.savedResultSelect.addEventListener("change", loadSelectedResult);
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+      e.preventDefault();
+      if (state.selectedQuestionPath) {
+        saveQuestion();
+      }
+    }
+  });
+  els.title.addEventListener("input", () => {
+    if (!state.hasUnsavedChanges) {
+      state.hasUnsavedChanges = true;
+      updateUnsavedIndicator();
+    }
+  });
+  [els.score, els.systemPrompt, els.note, els.expectedAnswer, els.checker].forEach((el) => {
+    el?.addEventListener("input", () => {
+      if (!state.hasUnsavedChanges) {
+        state.hasUnsavedChanges = true;
+        updateUnsavedIndicator();
+      }
+    });
+  });
+  els.rounds.addEventListener("input", () => {
+    if (!state.hasUnsavedChanges) {
+      state.hasUnsavedChanges = true;
+      updateUnsavedIndicator();
+    }
+  });
 }
 
 function switchPage(page) {
+  if (state.hasUnsavedChanges && !confirm("当前题目有未保存的更改，确定要离开吗？")) {
+    return;
+  }
   els.tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.page === page));
   els.pages.forEach((section) => section.classList.toggle("active", section.id === `page-${page}`));
 }
@@ -199,7 +231,39 @@ function getSelectedFolderTarget() {
   };
 }
 
+function updateUnsavedIndicator() {
+  const wrap = els.title.closest(".title-input-wrap");
+  if (wrap) {
+    if (state.hasUnsavedChanges) {
+      wrap.classList.add("unsaved");
+    } else {
+      wrap.classList.remove("unsaved");
+    }
+  }
+}
+
+function checkUnsavedAndProceed(callback) {
+  if (!state.hasUnsavedChanges) {
+    callback();
+    return;
+  }
+  if (confirm("当前题目有未保存的更改，是否保存？")) {
+    saveQuestion().then(() => callback());
+  } else {
+    state.hasUnsavedChanges = false;
+    callback();
+  }
+}
+
 async function openQuestion(questionPath) {
+  if (state.selectedQuestionPath && state.hasUnsavedChanges) {
+    checkUnsavedAndProceed(() => doOpenQuestion(questionPath));
+  } else {
+    doOpenQuestion(questionPath);
+  }
+}
+
+async function doOpenQuestion(questionPath) {
   const payload = await api(`/api/question?path=${encodeURIComponent(questionPath)}`);
   state.selectedQuestionPath = questionPath;
   state.currentQuestion = payload.content;
@@ -225,6 +289,8 @@ function renderEditor() {
   els.checker.value = question.checker || "";
   els.rounds.innerHTML = "";
   (question.conversation || []).forEach((round, index) => els.rounds.appendChild(createRoundEditor(round, index)));
+  state.hasUnsavedChanges = false;
+  updateUnsavedIndicator();
 }
 
 function createRoundEditor(round, index) {
@@ -327,6 +393,8 @@ async function saveQuestion() {
   const content = collectQuestionFromForm();
   await api("/api/question", { method: "POST", body: JSON.stringify({ path: state.selectedQuestionPath, content }) });
   state.currentQuestion = content;
+  state.hasUnsavedChanges = false;
+  updateUnsavedIndicator();
   await loadTree();
   renderTestingList();
 }
@@ -525,7 +593,7 @@ async function renderQuestionConversation(item, targetEl) {
   const draftTranscript = buildDraftTranscript(item.question);
   const mergedTranscript = mergeTranscriptWithDraft(transcript, draftTranscript);
   
-  mergedTranscript.forEach((entry, index) => targetEl.appendChild(renderTranscriptEntry(entry, index, mergedTranscript, state.isLoadingResult)));
+  mergedTranscript.forEach((entry, index) => targetEl.appendChild(renderTranscriptEntry(entry, index, mergedTranscript, state.isLoadingResult, item.question)));
 
   const followWrap = document.createElement("details");
   followWrap.className = "drawer";
@@ -547,20 +615,29 @@ function mergeTranscriptWithDraft(transcript, draft) {
   if (!transcript || transcript.length === 0) {
     return draft;
   }
-  
+
   const result = [];
+
+  const draftSystem = draft.find(e => e.role === "system");
+  const transcriptSystem = transcript.find(e => e.role === "system");
+  if (draftSystem && !transcriptSystem) {
+    result.push(draftSystem);
+  } else if (transcriptSystem) {
+    result.push(transcriptSystem);
+  }
+
   const draftUserCount = draft.filter(e => e.role === "user").length;
   const transcriptUserCount = transcript.filter(e => e.role === "user").length;
   const draftAssistantCount = draft.filter(e => e.role === "assistant").length;
   const transcriptAssistantCount = transcript.filter(e => e.role === "assistant").length;
-  
+
   if (transcriptUserCount >= draftUserCount && transcriptAssistantCount >= draftAssistantCount) {
-    return transcript;
+    return [...result, ...transcript.filter(e => e.role !== "system")];
   }
-  
+
   let draftUserIdx = 0;
   let draftAssistantIdx = 0;
-  
+
   for (const entry of draft) {
     if (entry.role === "system") {
       continue;
@@ -582,7 +659,7 @@ function mergeTranscriptWithDraft(transcript, draft) {
       draftAssistantIdx++;
     }
   }
-  
+
   return result;
 }
 
@@ -598,7 +675,17 @@ function buildDraftTranscript(question) {
   return transcript;
 }
 
-function renderTranscriptEntry(entry, index, transcript, isLoadedResult = false) {
+function findAssetPathForUserEntry(userEntryIndex, conversationRounds) {
+  if (userEntryIndex < 0 || userEntryIndex >= conversationRounds.length) return null;
+  const round = conversationRounds[userEntryIndex];
+  const parts = round?.user?.parts || [];
+  const imagePart = parts.find(p => p.type === "image" && p.assetPath);
+  return imagePart?.assetPath || null;
+}
+
+function renderTranscriptEntry(entry, index, transcript, isLoadedResult = false, question = null) {
+  const conversationRounds = question?.conversation || [];
+  const userEntryCount = transcript.slice(0, index + 1).filter(e => e.role === "user").length;
   if (entry.role === "system") {
     return renderMessageBubble("system", entry.content);
   }
@@ -609,8 +696,100 @@ function renderTranscriptEntry(entry, index, transcript, isLoadedResult = false)
       if (part.type === "image" && part.assetPath) {
         const bubble = document.createElement("div");
         bubble.className = "message-bubble message-user";
-        bubble.innerHTML = `<img src="/dataset-file/${encodeURIComponent(part.assetPath)}" alt="" style="max-width:280px; border-radius:8px" />`;
+        const imgSrc = `/dataset-file/${encodeURIComponent(part.assetPath)}`;
+        const img = document.createElement("img");
+        img.src = imgSrc;
+        img.alt = "";
+        img.style.maxWidth = "280px";
+        img.style.borderRadius = "8px";
+        img.style.cursor = "zoom-in";
+        img.addEventListener("click", () => {
+          const modalOverlay = document.getElementById("modal-overlay");
+          const modalBody = document.getElementById("modal-body");
+          if (modalOverlay && modalBody) {
+            let is1to1 = false;
+            modalBody.innerHTML = "";
+            const imgFull = document.createElement("img");
+            imgFull.src = imgSrc;
+            imgFull.style.display = "block";
+            imgFull.style.maxWidth = "100%";
+            imgFull.style.maxHeight = "calc(100vh - 100px)";
+            const toggleBtn = document.createElement("button");
+            toggleBtn.textContent = "1:1";
+            toggleBtn.style.marginBottom = "8px";
+            toggleBtn.style.padding = "4px 8px";
+            toggleBtn.style.fontSize = "12px";
+            toggleBtn.style.cursor = "pointer";
+            toggleBtn.addEventListener("click", () => {
+              is1to1 = !is1to1;
+              if (is1to1) {
+                imgFull.style.maxWidth = "none";
+                imgFull.style.maxHeight = "none";
+                imgFull.style.width = "auto";
+                imgFull.style.height = "auto";
+              } else {
+                imgFull.style.maxWidth = "100%";
+                imgFull.style.maxHeight = "calc(100vh - 100px)";
+                imgFull.style.width = "";
+                imgFull.style.height = "";
+              }
+              toggleBtn.textContent = is1to1 ? "适应窗口" : "1:1";
+            });
+            modalBody.appendChild(toggleBtn);
+            modalBody.appendChild(imgFull);
+            modalOverlay.style.display = "flex";
+            modalOverlay.onclick = (e) => {
+              if (e.target === modalOverlay) {
+                modalOverlay.style.display = "none";
+              }
+            };
+          }
+        });
+        bubble.appendChild(img);
         wrap.appendChild(bubble);
+      } else if (part.type === "image_url" && part.image_url?.url) {
+        const url = part.image_url.url;
+        if (url.startsWith("data:") || url.startsWith("/dataset-file/")) {
+          let displayUrl = url;
+          if (url.startsWith("data:") && conversationRounds.length > 0) {
+            const assetPath = findAssetPathForUserEntry(userEntryCount - 1, conversationRounds);
+            if (assetPath) {
+              displayUrl = `/dataset-file/${encodeURIComponent(assetPath)}`;
+            }
+          }
+          const bubble = document.createElement("div");
+          bubble.className = "message-bubble message-user";
+          const imgSrc = displayUrl;
+          const img = document.createElement("img");
+          img.src = imgSrc;
+          img.alt = "";
+          img.style.maxWidth = "280px";
+          img.style.borderRadius = "8px";
+          if (url.startsWith("data:")) {
+            img.style.cursor = "zoom-in";
+            img.addEventListener("click", () => {
+              const modalOverlay = document.getElementById("modal-overlay");
+              const modalBody = document.getElementById("modal-body");
+              if (modalOverlay && modalBody) {
+                modalBody.innerHTML = "";
+                const imgFull = document.createElement("img");
+                imgFull.src = imgSrc;
+                imgFull.style.display = "block";
+                imgFull.style.maxWidth = "100%";
+                imgFull.style.maxHeight = "calc(100vh - 100px)";
+                modalBody.appendChild(imgFull);
+                modalOverlay.style.display = "flex";
+                modalOverlay.onclick = (e) => {
+                  if (e.target === modalOverlay) {
+                    modalOverlay.style.display = "none";
+                  }
+                };
+              }
+            });
+          }
+          bubble.appendChild(img);
+          wrap.appendChild(bubble);
+        }
       } else {
         wrap.appendChild(renderMessageBubble("user", part.text || ""));
       }

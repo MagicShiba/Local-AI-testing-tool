@@ -279,10 +279,12 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
     const userContent = await toUserContent(round.user?.parts || []);
     const userMessage = { role: "user", content: userContent };
     messages.push(userMessage);
-    transcript.push({
-      role: "user",
-      content: round.user?.parts || [],
-    });
+    for (const part of round.user?.parts || []) {
+      transcript.push({
+        role: "user",
+        content: [part],
+      });
+    }
 
     const assistantItems = Array.isArray(round.assistant) && round.assistant.length
       ? round.assistant
@@ -308,6 +310,7 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
       const answer = extractAnswerText(response);
       const reasoning = extractReasoningText(response);
       messages.push({ role: "assistant", content: answer });
+      const cleanedRequestMessages = cleanRequestMessagesForTranscript(requestMessages, conversationRounds);
       transcript.push({
         role: "assistant",
         mode: "generate",
@@ -316,7 +319,7 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
         request: {
           model: preset.model,
           baseUrl: preset.baseUrl,
-          messages: requestMessages,
+          messages: cleanedRequestMessages,
         },
         response,
         _duration: reqDuration,
@@ -324,7 +327,7 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
       requests.push({
         model: preset.model,
         baseUrl: preset.baseUrl,
-        messages: requestMessages,
+        messages: cleanedRequestMessages,
         response,
         answer,
         reasoning,
@@ -349,6 +352,7 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
     const answer = extractAnswerText(response);
     const reasoning = extractReasoningText(response);
     messages.push({ role: "assistant", content: answer });
+    const cleanedRequestMessages = cleanRequestMessagesForTranscript(requestMessages, conversationRounds);
     transcript.push({
       role: "assistant",
       mode: "generate",
@@ -358,7 +362,7 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
       request: {
         model: preset.model,
         baseUrl: preset.baseUrl,
-        messages: requestMessages,
+        messages: cleanedRequestMessages,
       },
       response,
       _duration: reqDuration,
@@ -366,7 +370,7 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
     requests.push({
       model: preset.model,
       baseUrl: preset.baseUrl,
-      messages: requestMessages,
+      messages: cleanedRequestMessages,
       response,
       answer,
       reasoning,
@@ -475,28 +479,89 @@ function buildAssistantMeta(response) {
 
 function cleanRequestMessagesForSave(request, conversationRounds) {
   if (!request?.messages) return request;
+  const imageAssetMap = {};
+  request.messages.forEach((msg, msgIdx) => {
+    if (msg.role !== "user") return;
+    const content = msg.content;
+    if (!Array.isArray(content)) return;
+    content.forEach((item) => {
+      if (item.type !== "image_url" || !item.image_url?.url) return;
+      if (item.image_url.url.startsWith("data:")) {
+        const roundIndex = request.messages.slice(0, msgIdx).filter((m) => m.role === "user").length;
+        const round = conversationRounds[roundIndex];
+        const parts = round?.user?.parts || [];
+        const imagePart = parts.find((p) => p.type === "image" && p.assetPath);
+        if (imagePart?.assetPath) {
+          imageAssetMap[`${msgIdx}-${item.image_url.url}`] = imagePart.assetPath;
+        }
+      }
+    });
+  });
   return {
     ...request,
-    messages: request.messages.map((msg) => {
+    messages: request.messages.map((msg, msgIdx) => {
       if (msg.role !== "user") return msg;
       const content = msg.content;
       if (!Array.isArray(content)) return msg;
-      return { ...msg, content: content.map((item) => {
-        if (item.type !== "image_url" || !item.image_url?.url) return item;
-        const url = item.image_url.url;
-        if (url.startsWith("data:")) {
-          const roundIndex = request.messages.slice(0, request.messages.indexOf(msg)).filter((m) => m.role === "user").length;
+      return {
+        ...msg,
+        content: content.map((item, itemIdx) => {
+          if (item.type !== "image_url" || !item.image_url?.url) return item;
+          const url = item.image_url.url;
+          if (url.startsWith("data:")) {
+            const assetPath = imageAssetMap[`${msgIdx}-${url}`];
+            if (assetPath) {
+              return { type: "image_url", image_url: { url: assetPath } };
+            }
+          }
+          return item;
+        }),
+      };
+    }),
+  };
+}
+
+function cleanRequestMessagesForTranscript(requestMessages, conversationRounds) {
+  if (!requestMessages) return requestMessages;
+  const imageAssetMap = {};
+  requestMessages.forEach((msg, msgIdx) => {
+    if (msg.role !== "user") return;
+    const content = msg.content;
+    if (!Array.isArray(content)) return;
+    content.forEach((item) => {
+      if (item.type !== "image_url" || !item.image_url?.url) return;
+      if (item.image_url.url.startsWith("data:")) {
+        const roundIndex = requestMessages.slice(0, msgIdx).filter((m) => m.role === "user").length;
+        if (roundIndex < conversationRounds.length) {
           const round = conversationRounds[roundIndex];
           const parts = round?.user?.parts || [];
           const imagePart = parts.find((p) => p.type === "image" && p.assetPath);
           if (imagePart?.assetPath) {
-            return { type: "image_url", image_url: { url: imagePart.assetPath } };
+            imageAssetMap[`${msgIdx}-${item.image_url.url}`] = imagePart.assetPath;
+          }
+        }
+      }
+    });
+  });
+  return requestMessages.map((msg, msgIdx) => {
+    if (msg.role !== "user") return msg;
+    const content = msg.content;
+    if (!Array.isArray(content)) return msg;
+    return {
+      ...msg,
+      content: content.map((item) => {
+        if (item.type !== "image_url" || !item.image_url?.url) return item;
+        const url = item.image_url.url;
+        if (url.startsWith("data:")) {
+          const assetPath = imageAssetMap[`${msgIdx}-${url}`];
+          if (assetPath) {
+            return { type: "image_url", image_url: { url: assetPath } };
           }
         }
         return item;
-      }) };
-    }),
-  };
+      }),
+    };
+  });
 }
 
 async function toUserContent(parts) {

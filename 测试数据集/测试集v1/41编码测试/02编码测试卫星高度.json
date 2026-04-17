@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "title": "编写一个2D的html，展示地球的卫星和轨道高度。",
+  "score": 5,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "编写一个html,用于展示地球的卫星的轨道高度,使用2D。\n\n要求：\n不依赖外部库，所有内容都在一个单独的html内。\n使用真实比例，不需要使用对数，可以使用鼠标缩放和拖动。\n在地球内部显示半径。显示太空分界线。\n显示国际空间站,哈勃望远镜,星链卫星,静止卫星,gps卫星等，使用点表示即可，显示它们的名称和轨道。\n显示月球高度和轨道，月球需要具有体积。"
+          }
+        ]
+      },
+      "assistant": []
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-17T13:35:42.123Z",
+    "updatedAt": "2026-04-17T13:39:38.947Z",
+    "filename": "02编码测试卫星高度.json"
+  }
+}

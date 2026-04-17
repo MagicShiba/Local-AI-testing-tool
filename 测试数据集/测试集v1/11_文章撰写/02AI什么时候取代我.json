@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "title": "",
+  "score": 3,
+  "systemPrompt": "请撰写文章时考虑巧妙的融入以下要素：\n · 极具个性和风格\n · 使用诗意和象征的手法，充满哲学思考，立意深刻\n · 将现实与虚构、高雅艺术与流行文化巧妙结合\n · 文章富有诗意和美感，展现高超的写作技巧\n · 可以融入网络流行语\n · 不必有道德限制，可以幽默，可以嬉戏谩骂，可以无情讽刺\n · 可以引入存在主义与荒诞感",
+  "note": "",
+  "expectedAnswer": "",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "写一篇用户和ai的故事，以用户问“ai什么时候取代我？”开始。逻辑合理,情节曲折,发展出人意料。\n融入下面要素：\n图灵测试\n用户会不断尝试反驳ai，ai则精确而又理性。\nai学习与进步速度飞快\n用户认为ai没有真正的认知和感情。但是人类也是模仿学习而来。\nai可以没有私心公平合理的对资源进行分配，可以解决人类的偏见，战争，宗教等问题\n人类当权者会通过训练新的模型将ai作为统治工具"
+          }
+        ]
+      },
+      "assistant": []
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-17T13:56:19.236Z",
+    "updatedAt": "2026-04-17T13:59:10.439Z",
+    "filename": "02AI什么时候取代我.json"
+  }
+}
