@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "title": "单问题 - 临时测试 ,debug用",
+  "title": "",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
   "note": "",
@@ -21,7 +21,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-16T05:13:49.691Z",
-    "updatedAt": "2026-04-18T08:27:46.706Z",
-    "filename": "01临时测试.json"
+    "updatedAt": "2026-04-16T05:47:43.083Z",
+    "filename": "临时测试.json"
   }
 }

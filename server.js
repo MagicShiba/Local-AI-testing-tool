@@ -11,6 +11,7 @@ const APP_DATA_DIR = path.join(ROOT, "app-data");
 const SETTINGS_FILE = path.join(APP_DATA_DIR, "settings.json");
 const RESULTS_DIR = path.join(APP_DATA_DIR, "results");
 const MAX_BODY = 50 * 1024 * 1024;
+const DEBUG_TEST_FLOW = false;
 
 ensureDirSync(DATASET_ROOT);
 ensureDirSync(APP_DATA_DIR);
@@ -274,20 +275,26 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
   const stepArg = step !== null ? step : (followUpText ? conversationRounds.length + 1 : conversationRounds.length);
   const maxStep = stepArg;
 
-  const existingUserEntries = existingTranscript.filter(e => e.role === "user");
+  const existingUserEntries = existingTranscript.filter(e => e.role === "user" && !e.isFollowUp);
   const existingAssistantEntries = existingTranscript.filter(e => e.role === "assistant");
-  const existingUserCount = existingUserEntries.length;
+  const existingUserCount = Math.min(existingUserEntries.length, conversationRounds.length);
   const existingAssistantCount = existingAssistantEntries.length;
+  if (DEBUG_TEST_FLOW) {
+    console.log("[executeQuestion:start]", {
+      step,
+      stepArg,
+      rounds: conversationRounds.length,
+      existingTranscriptLength: existingTranscript.length,
+      existingUserCount,
+      existingAssistantCount,
+      hasFollowUpText: Boolean(followUpText),
+    });
+  }
 
   for (let i = 0; i < existingUserCount; i++) {
     const userEntry = existingUserEntries[i];
     if (userEntry && userEntry.content) {
-      const userContent = userEntry.content.map(part => {
-        if (part.type === "image" && part.assetPath) {
-          return { type: "image_url", image_url: { url: part.assetPath } };
-        }
-        return { type: "text", text: part.text || "" };
-      });
+      const userContent = await normalizeTranscriptUserContent(userEntry.content);
       const msgContent = userContent.length === 1 && userContent[0].type === "text" ? userContent[0].text : userContent;
       messages.push({ role: "user", content: msgContent });
       transcript.push({ role: "user", content: userEntry.content });
@@ -314,26 +321,22 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
     if (roundIdx < existingUserCount) continue;
 
     const round = conversationRounds[roundIdx];
+    if (DEBUG_TEST_FLOW) {
+      console.log("[executeQuestion:round]", { roundIdx, stepArg });
+    }
     const userContent = await toUserContent(round.user?.parts || []);
     const userMessage = { role: "user", content: userContent };
     messages.push(userMessage);
-    for (const part of round.user?.parts || []) {
-      transcript.push({
-        role: "user",
-        content: [part],
-      });
-    }
+    transcript.push({
+      role: "user",
+      content: cloneJson(round.user?.parts || []),
+    });
 
     const assistantItems = Array.isArray(round.assistant) && round.assistant.length
       ? round.assistant
       : [{ mode: "generate", content: "" }];
 
-    let assistantIdx = 0;
     for (const assistantItem of assistantItems) {
-      if (roundIdx === existingUserCount - 1 && assistantIdx < existingAssistantCount) {
-        assistantIdx++;
-        continue;
-      }
       const hasManualContent = String(assistantItem?.content || "").trim().length > 0;
       if (hasManualContent) {
         messages.push({ role: "assistant", content: assistantItem.content });
@@ -343,7 +346,6 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
           content: assistantItem.content,
         });
         lastAnswer = assistantItem.content;
-        assistantIdx++;
         continue;
       }
 
@@ -377,7 +379,6 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
         reasoning,
       });
       lastAnswer = answer;
-      assistantIdx++;
     }
   }
 
@@ -432,6 +433,33 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
     score: evaluateAnswer(question, lastAnswer),
     transcript: preserveMetadata ? transcript : cleanTranscriptForSave(transcript, conversationRounds),
   };
+}
+
+async function normalizeTranscriptUserContent(content) {
+  const parts = Array.isArray(content) ? content : [{ type: "text", text: String(content || "") }];
+  const result = [];
+  for (const part of parts) {
+    if (part.type === "image" && part.assetPath) {
+      result.push({ type: "image_url", image_url: { url: await datasetAssetToDataUrl(part.assetPath) } });
+      continue;
+    }
+    if (part.type === "image_url" && part.image_url?.url) {
+      const rawUrl = String(part.image_url.url || "");
+      if (rawUrl.startsWith("data:") || rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+        result.push({ type: "image_url", image_url: { url: rawUrl } });
+        continue;
+      }
+      if (rawUrl.startsWith("/dataset-file/")) {
+        const rel = decodeURIComponent(rawUrl.replace("/dataset-file/", ""));
+        result.push({ type: "image_url", image_url: { url: await datasetAssetToDataUrl(rel) } });
+        continue;
+      }
+      result.push({ type: "image_url", image_url: { url: await datasetAssetToDataUrl(rawUrl) } });
+      continue;
+    }
+    result.push({ type: "text", text: part.text || "" });
+  }
+  return result;
 }
 
 function cleanMessageForSave(msg, conversationRounds) {

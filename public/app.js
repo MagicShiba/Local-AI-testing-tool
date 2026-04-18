@@ -7,16 +7,21 @@ const state = {
   testingPresetId: "",
   testingItems: [],
   testingSelectedPath: "",
-  stopRequested: false,
+  stopAllRequested: false,
+  isBatchRunning: false,
   isLoadingResult: false,
   hasUnsavedChanges: false,
 };
+
+const DEBUG_TEST_FLOW = false;
+const LAST_PAGE_KEY = "lastActivePage";
 
 const els = {
   tabs: [...document.querySelectorAll(".tab")],
   pages: [...document.querySelectorAll(".page")],
   tree: document.getElementById("tree"),
   editorEmpty: document.getElementById("editorEmpty"),
+  editorPanelHeader: document.getElementById("editorPanelHeader"),
   questionForm: document.getElementById("questionForm"),
   saveQuestionBtn: document.getElementById("saveQuestionBtn"),
   quickRunQuestionBtn: document.getElementById("quickRunQuestionBtn"),
@@ -55,6 +60,11 @@ async function init() {
   bindEvents();
   await Promise.all([loadTree(), loadSettings(), loadResults()]);
   syncTestingSelectors();
+  renderEditor();
+  const initialPage = localStorage.getItem(LAST_PAGE_KEY);
+  if (initialPage === "testing" || initialPage === "settings" || initialPage === "editor") {
+    switchPage(initialPage, { skipUnsavedCheck: true });
+  }
 }
 
 function bindEvents() {
@@ -120,12 +130,14 @@ function bindEvents() {
   });
 }
 
-function switchPage(page) {
-  if (state.hasUnsavedChanges && !confirm("当前题目有未保存的更改，确定要离开吗？")) {
+function switchPage(page, options = {}) {
+  const skipUnsavedCheck = Boolean(options.skipUnsavedCheck);
+  if (!skipUnsavedCheck && state.hasUnsavedChanges && !confirm("当前题目有未保存的更改，确定要离开吗？")) {
     return;
   }
   els.tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.page === page));
   els.pages.forEach((section) => section.classList.toggle("active", section.id === `page-${page}`));
+  localStorage.setItem(LAST_PAGE_KEY, page);
 }
 
 async function api(path, options = {}) {
@@ -273,10 +285,12 @@ async function doOpenQuestion(questionPath) {
 
 function renderEditor() {
   if (!state.currentQuestion) {
+    els.editorPanelHeader?.classList.add("hidden");
     els.editorEmpty.classList.remove("hidden");
     els.questionForm.classList.add("hidden");
     return;
   }
+  els.editorPanelHeader?.classList.remove("hidden");
   els.editorEmpty.classList.add("hidden");
   els.questionForm.classList.remove("hidden");
   const question = state.currentQuestion;
@@ -513,7 +527,15 @@ async function renderTestingList() {
   const oldMap = new Map(state.testingItems.map((item) => [item.path, item]));
   state.testingItems = items.map((item) => {
     const old = oldMap.get(item.path);
-    return { ...item, result: old?.result, manualScore: old?.manualScore, open: old?.open, running: old?.running };
+    return {
+      ...item,
+      result: old?.result,
+      manualScore: old?.manualScore,
+      open: old?.open,
+      running: old?.running,
+      stopRequested: old?.stopRequested || false,
+      abortController: old?.abortController || null,
+    };
   });
   await refreshTestingView();
   renderTestingTree();
@@ -548,10 +570,16 @@ async function createTestingCard(item) {
   side.className = "test-side";
   const expectedText = questionData?.expectedAnswer?.trim() ? escapeHtml(questionData.expectedAnswer) : "未设置";
   const noteText = questionData?.note?.trim() ? escapeHtml(questionData.note) : "无";
-  side.innerHTML = `<div class="toolbar"><button type="button" class="runOneBtn">${item.running ? "执行中..." : "测试本题"}</button></div><div class="status-line">${item.running ? "正在按轮次自动测试..." : "就绪"}</div><div class="status-extra"><div>预设：${expectedText}</div><div>备注：\n${noteText}</div></div>`;
+  side.innerHTML = `<div class="toolbar"><button type="button" class="runOneBtn">${item.running ? "停止本题" : "测试本题"}</button></div><div class="status-line">${item.running ? "正在按轮次自动测试..." : "就绪"}</div><div class="status-extra"><div>预设：${expectedText}</div><div>备注：\n${noteText}</div></div>`;
   const runButton = side.querySelector(".runOneBtn");
-  runButton.disabled = item.running;
-  runButton.addEventListener("click", () => runSingleTest(item.path));
+  runButton.disabled = false;
+  runButton.addEventListener("click", () => {
+    if (item.running) {
+      stopSingleTest(item.path);
+      return;
+    }
+    runSingleTest(item.path);
+  });
   const headerScoreInput = summary.querySelector(".manualScoreInput");
   headerScoreInput.value = item.manualScore ?? item.result?.score?.earned ?? 0;
   headerScoreInput.addEventListener("change", async (event) => {
@@ -665,7 +693,7 @@ function mergeTranscriptWithDraft(transcript, draft) {
 function buildDraftTranscript(question) {
   const transcript = [];
   (question.conversation || []).forEach((round) => {
-    (round.user?.parts || []).forEach((part) => transcript.push({ role: "user", content: [part] }));
+    transcript.push({ role: "user", content: [...(round.user?.parts || [])] });
     (round.assistant || []).forEach((assistant) => {
       if (assistant.content) transcript.push({ role: "assistant", content: assistant.content, mode: assistant.mode || "seed" });
       else transcript.push({ role: "assistant", content: "", mode: assistant.mode || "generate", pending: true });
@@ -883,26 +911,53 @@ function renderTranscriptEntry(entry, index, transcript, isLoadedResult = false,
 function renderMessageBubble(role, content, reasoning = "") {
   const div = document.createElement("div");
   div.className = `message-bubble message-${role}`;
-  div.innerHTML = role === "assistant" ? renderAssistantAnswer(content || "", reasoning) : renderMarkdown(content || "");
+  if (role === "assistant") {
+    div.innerHTML = renderAssistantAnswer(content || "", reasoning);
+    return div;
+  }
+  div.innerHTML = renderSmartMessage(content || "");
   return div;
 }
 
 function renderAssistantAnswer(answer, reasoning = "") {
-  const thinkMatch = String(answer).match(/<think>([\s\S]*?)<\/think>/i);
-  let visible = String(answer);
+  const normalizedAnswer = normalizeMessageText(answer);
+  const thinkMatch = normalizedAnswer.match(/<think>([\s\S]*?)<\/think>/i);
+  let visible = normalizedAnswer;
   if (thinkMatch) {
-    visible = String(answer).replace(thinkMatch[0], "").trim();
+    visible = normalizedAnswer.replace(thinkMatch[0], "").trim();
   }
-  return renderMarkdown(visible);
+  return renderSmartMessage(visible);
+}
+
+function renderSmartMessage(text) {
+  const source = normalizeMessageText(text);
+  if (hasMarkdownSyntax(source)) {
+    return renderMarkdown(source);
+  }
+  return escapeHtml(source).replace(/\n/g, "<br>");
+}
+
+function hasMarkdownSyntax(text) {
+  const source = String(text || "");
+  return /(^|\n)\s{0,3}([-*+] |\d+\. )|(^|\n)\s{0,3}#{1,6}\s|```|`[^`]+`|\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*|_[^_]+_|(^|\n)\s{0,3}>/.test(source);
+}
+
+function normalizeMessageText(text) {
+  let source = String(text || "").replace(/\r\n/g, "\n");
+  if (!source.includes("\n") && source.includes("\\n")) {
+    source = source.replace(/\\n/g, "\n");
+  }
+  return source;
 }
 
 async function runSingleTest(questionPath, step = null) {
   const item = state.testingItems.find((entry) => entry.path === questionPath);
   if (!item) return;
-  if (state.stopRequested) {
+  if ((state.isBatchRunning && state.stopAllRequested) || item.stopRequested) {
     item.running = false;
     return;
   }
+  if (item.running && step === null) return;
   const preset = getTestingPreset();
   if (!preset) return;
   if (!item.question) item.question = (await api(`/api/question?path=${encodeURIComponent(questionPath)}`)).content;
@@ -923,9 +978,22 @@ async function runSingleTest(questionPath, step = null) {
   
   const maxStep = hasFollowUpText ? conversationRounds.length + 1 : conversationRounds.length;
   const isInitialRun = step === null && !isFollowUpCall;
+  if (DEBUG_TEST_FLOW) {
+    console.log("[runSingleTest:start]", {
+      questionPath,
+      inputStep: step,
+      currentStep,
+      maxStep,
+      isInitialRun,
+      isFollowUpCall,
+      hasFollowUpText: Boolean(hasFollowUpText),
+      existingTranscriptLength: item.result?.transcript?.length || 0,
+    });
+  }
 
   if (isInitialRun) {
     item.running = true;
+    item.stopRequested = false;
     item.result = null;
     item.manualScore = null;
   } else {
@@ -935,10 +1003,13 @@ async function runSingleTest(questionPath, step = null) {
   updateStopButton();
   await refreshTestingView();
   const startTime = Date.now();
+  const controller = new AbortController();
+  item.abortController = controller;
   try {
     const existingTranscript = (step === null || isInitialRun) ? [] : (item.result?.transcript || []);
     const apiResult = await api("/api/run-test", {
       method: "POST",
+      signal: controller.signal,
       body: JSON.stringify({
         preset,
         question: item.question,
@@ -949,11 +1020,25 @@ async function runSingleTest(questionPath, step = null) {
       })
     });
     const duration = Date.now() - startTime;
+    if (DEBUG_TEST_FLOW) {
+      console.log("[runSingleTest:apiResult]", {
+        questionPath,
+        currentStep,
+        maxStep,
+        durationMs: duration,
+        transcriptLength: apiResult?.transcript?.length || 0,
+        assistantCount: (apiResult?.transcript || []).filter((e) => e.role === "assistant").length,
+        userCount: (apiResult?.transcript || []).filter((e) => e.role === "user").length,
+      });
+    }
 
     if (currentStep >= maxStep) {
       item.result = { ...item.result, ...apiResult, _duration: (item.result?._duration || 0) + duration };
       setTestingSelected(item.path);
     } else {
+      if ((state.isBatchRunning && state.stopAllRequested) || item.stopRequested) {
+        return;
+      }
       item.result = {
         ...item.result,
         ...apiResult,
@@ -968,8 +1053,26 @@ async function runSingleTest(questionPath, step = null) {
       return;
     }
   } catch (error) {
-    item.result = { answer: "", transcript: [], score: { earned: 0, total: item.score, passed: false, error: error.message } };
+    if (error?.name === "AbortError") {
+      if (DEBUG_TEST_FLOW) {
+        console.warn("[runSingleTest:aborted]", { questionPath, currentStep });
+      }
+      return;
+    }
+    if (DEBUG_TEST_FLOW) {
+      console.error("[runSingleTest:error]", { questionPath, currentStep, message: error.message });
+    }
+    const prevResult = item.result || {};
+    item.result = {
+      ...prevResult,
+      answer: prevResult.answer || "",
+      transcript: prevResult.transcript || [],
+      score: { earned: 0, total: item.score, passed: false, error: error.message },
+    };
   } finally {
+    if (item.abortController === controller) {
+      item.abortController = null;
+    }
     item.running = false;
     updateStopButton();
     await refreshTestingView();
@@ -977,18 +1080,41 @@ async function runSingleTest(questionPath, step = null) {
 }
 
 async function runAllTests() {
-  state.stopRequested = false;
+  state.isBatchRunning = true;
+  state.stopAllRequested = false;
+  state.testingItems.forEach((item) => {
+    item.stopRequested = false;
+  });
   updateStopButton();
   for (const item of state.testingItems) {
-    if (state.stopRequested) break;
+    if (state.stopAllRequested) break;
     await runSingleTest(item.path, null);
   }
-  state.stopRequested = false;
+  state.isBatchRunning = false;
+  state.stopAllRequested = false;
   updateStopButton();
 }
 
 function stopAllTests() {
-  state.stopRequested = true;
+  if (state.isBatchRunning) {
+    state.stopAllRequested = true;
+  }
+  state.testingItems.forEach((item) => {
+    item.stopRequested = true;
+    if (item.abortController) {
+      item.abortController.abort();
+    }
+  });
+  updateStopButton();
+}
+
+function stopSingleTest(questionPath) {
+  const item = state.testingItems.find((entry) => entry.path === questionPath);
+  if (!item) return;
+  item.stopRequested = true;
+  if (item.abortController) {
+    item.abortController.abort();
+  }
   updateStopButton();
 }
 
@@ -1259,8 +1385,7 @@ function renderMarkdown(source) {
   if (!source) return "";
   const md = typeof marked !== 'undefined' ? marked : window.marked;
   const hl = typeof hljs !== 'undefined' ? hljs : window.hljs;
-  let html = md.parse(source);
-  html = html.replace(/>\s+</g, "><");
+  const html = md.parse(normalizeMessageText(source), { breaks: true, gfm: true });
   return enhanceCodeBlocks(html, hl);
 }
 
