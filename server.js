@@ -261,23 +261,53 @@ async function serveDatasetFile(res, url) {
 
 async function executeQuestion(preset, question, followUpText, step = null, preserveMetadata = true, existingTranscript = []) {
   const messages = [];
-  const transcript = [...existingTranscript.filter(e => e.role !== "system" || !question.systemPrompt)];
+  const transcript = [];
   const requests = [];
   let lastAnswer = "";
 
   if (question.systemPrompt) {
     messages.push({ role: "system", content: question.systemPrompt });
-    if (!existingTranscript.some(e => e.role === "system")) {
-      transcript.push({ role: "system", content: question.systemPrompt });
-    }
+    transcript.push({ role: "system", content: question.systemPrompt });
   }
 
   const conversationRounds = question.conversation || [];
   const stepArg = step !== null ? step : (followUpText ? conversationRounds.length + 1 : conversationRounds.length);
   const maxStep = stepArg;
 
-  const existingUserCount = existingTranscript.filter(e => e.role === "user").length;
-  const existingAssistantCount = existingTranscript.filter(e => e.role === "assistant").length;
+  const existingUserEntries = existingTranscript.filter(e => e.role === "user");
+  const existingAssistantEntries = existingTranscript.filter(e => e.role === "assistant");
+  const existingUserCount = existingUserEntries.length;
+  const existingAssistantCount = existingAssistantEntries.length;
+
+  for (let i = 0; i < existingUserCount; i++) {
+    const userEntry = existingUserEntries[i];
+    if (userEntry && userEntry.content) {
+      const userContent = userEntry.content.map(part => {
+        if (part.type === "image" && part.assetPath) {
+          return { type: "image_url", image_url: { url: part.assetPath } };
+        }
+        return { type: "text", text: part.text || "" };
+      });
+      const msgContent = userContent.length === 1 && userContent[0].type === "text" ? userContent[0].text : userContent;
+      messages.push({ role: "user", content: msgContent });
+      transcript.push({ role: "user", content: userEntry.content });
+      
+      const assistantEntry = existingAssistantEntries[i];
+      if (assistantEntry) {
+        messages.push({ role: "assistant", content: assistantEntry.content || "" });
+        transcript.push({
+          role: "assistant",
+          mode: assistantEntry.mode || "seed",
+          content: assistantEntry.content || "",
+          meta: assistantEntry.meta,
+          request: assistantEntry.request,
+          response: assistantEntry.response,
+          reasoning: assistantEntry.reasoning,
+        });
+        lastAnswer = assistantEntry.content || "";
+      }
+    }
+  }
 
   for (let roundIdx = 0; roundIdx < conversationRounds.length; roundIdx++) {
     if (step !== null && roundIdx >= stepArg) break;

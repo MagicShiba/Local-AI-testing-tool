@@ -134,11 +134,11 @@ main { padding: 2px; }
 }
 .test-side { border-left: 1px solid var(--line); padding: 4px; }
 .message-controls { margin: 4px 0 6px; display: flex; gap: 6px; flex-wrap: wrap; }
-.message-bubble { padding: 3px 4px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 6px; white-space: pre-wrap; word-break: break-word; }
-.message-bubble p { margin: 4px 0 4px 0; }
+.message-bubble { padding: 0px 4px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 6px; white-space: pre-wrap; word-break: break-word; }
+.message-bubble p { margin: 3px  0px; }
 .message-bubble ol { margin: 0 0 4px 0; }
 .message-bubble li { margin: 0 0 4px 0; }
-.message-bubble ul { margin: 0 0 8px 0; }
+.message-bubble ul { margin: 0 0 4px 0; }
 .message-bubble h1,.message-bubble h2,.message-bubble h3,.message-bubble h4 { margin: 4px;background: #66666633; }
 
 .message-system { max-width: 70%; margin: 3px auto 3px; background: #fff7dd; }
@@ -324,6 +324,13 @@ main { padding: 2px; }
   font-family: "Consolas", "Monaco", monospace;
   font-size: 13px;
   line-height: 1.5;
+}
+
+blockquote{
+  border-left: 5px solid grey;
+  padding: 2px 5px;
+  margin: 5px 20px;
+  background: #00000011;
 }
 
 .code-collapse-wrapper {

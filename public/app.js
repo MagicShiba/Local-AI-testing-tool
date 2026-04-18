@@ -626,12 +626,13 @@ function mergeTranscriptWithDraft(transcript, draft) {
     result.push(transcriptSystem);
   }
 
+  const transcriptUsers = transcript.filter(e => e.role === "user");
+  const transcriptAssistants = transcript.filter(e => e.role === "assistant");
   const draftUserCount = draft.filter(e => e.role === "user").length;
-  const transcriptUserCount = transcript.filter(e => e.role === "user").length;
   const draftAssistantCount = draft.filter(e => e.role === "assistant").length;
-  const transcriptAssistantCount = transcript.filter(e => e.role === "assistant").length;
 
-  if (transcriptUserCount >= draftUserCount && transcriptAssistantCount >= draftAssistantCount) {
+  const hasAllDraftEntries = transcriptUsers.length >= draftUserCount && transcriptAssistants.length >= draftAssistantCount;
+  if (hasAllDraftEntries) {
     return [...result, ...transcript.filter(e => e.role !== "system")];
   }
 
@@ -642,7 +643,6 @@ function mergeTranscriptWithDraft(transcript, draft) {
     if (entry.role === "system") {
       continue;
     } else if (entry.role === "user") {
-      const transcriptUsers = transcript.filter(e => e.role === "user");
       if (draftUserIdx < transcriptUsers.length) {
         result.push(transcriptUsers[draftUserIdx]);
       } else {
@@ -650,7 +650,6 @@ function mergeTranscriptWithDraft(transcript, draft) {
       }
       draftUserIdx++;
     } else {
-      const transcriptAssistants = transcript.filter(e => e.role === "assistant");
       if (draftAssistantIdx < transcriptAssistants.length) {
         result.push(transcriptAssistants[draftAssistantIdx]);
       } else {
@@ -801,10 +800,7 @@ function renderTranscriptEntry(entry, index, transcript, isLoadedResult = false,
   wrap.className = "message-assistant-wrap";
   wrap.appendChild(renderMessageBubble("assistant", entry.content || (entry.pending ? "_等待模型回答_" : ""), entry.reasoning || ""));
   
-  const assistantEntries = transcript ? transcript.filter(e => e.role === "assistant") : [];
-  const isLastInTranscript = assistantEntries.length > 0 && assistantEntries[assistantEntries.length - 1] === entry;
-  
-  const showMetaButton = !isLoadedResult || isLastInTranscript;
+  const showMetaButton = !isLoadedResult || entry.role === "assistant";
   
   if (showMetaButton && (entry.request || entry.response || entry.meta)) {
     const controls = document.createElement("div");
@@ -955,7 +951,7 @@ async function runSingleTest(questionPath, step = null) {
     const duration = Date.now() - startTime;
 
     if (currentStep >= maxStep) {
-      item.result = { ...apiResult, _duration: (item.result?._duration || 0) + duration };
+      item.result = { ...item.result, ...apiResult, _duration: (item.result?._duration || 0) + duration };
       setTestingSelected(item.path);
     } else {
       item.result = {
@@ -1180,6 +1176,7 @@ function highlightSelectedCard(path) {
   });
 }
 
+//目录中点击题目时测试列表跳转至对应问题
 function scrollToTestingCard(path) {
   const selector = `[data-path="${cssEscape(path)}"]`;
   const card = els.testingList.querySelector(selector);
@@ -1188,7 +1185,7 @@ function scrollToTestingCard(path) {
   const item = state.testingItems.find((entry) => entry.path === path);
   if (item) item.open = true;
   const topbarHeight = document.querySelector(".topbar")?.offsetHeight || 60;
-  const y = card.getBoundingClientRect().top + window.scrollY - topbarHeight - 10;
+  const y = card.getBoundingClientRect().top + window.scrollY - topbarHeight - 30; //粘性标题偏移，防遮挡
   window.scrollTo({ top: y, behavior: "smooth" });
 }
 
