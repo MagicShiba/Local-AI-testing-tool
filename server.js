@@ -233,7 +233,8 @@ async function handleApi(req, res, url) {
     const followUpText = body.followUpText || "";
     const step = body.step;
     const preserveMetadata = body.preserveMetadata !== false;
-    const execution = await executeQuestion(preset, question, followUpText, step, preserveMetadata);
+    const existingTranscript = body.existingTranscript || [];
+    const execution = await executeQuestion(preset, question, followUpText, step, preserveMetadata, existingTranscript);
     return respondJson(res, 200, execution);
   }
 
@@ -258,22 +259,29 @@ async function serveDatasetFile(res, url) {
   fs.createReadStream(fullPath).pipe(res);
 }
 
-async function executeQuestion(preset, question, followUpText, step = null, preserveMetadata = true) {
+async function executeQuestion(preset, question, followUpText, step = null, preserveMetadata = true, existingTranscript = []) {
   const messages = [];
-  const transcript = [];
+  const transcript = [...existingTranscript.filter(e => e.role !== "system" || !question.systemPrompt)];
   const requests = [];
   let lastAnswer = "";
 
   if (question.systemPrompt) {
     messages.push({ role: "system", content: question.systemPrompt });
-    transcript.push({ role: "system", content: question.systemPrompt });
+    if (!existingTranscript.some(e => e.role === "system")) {
+      transcript.push({ role: "system", content: question.systemPrompt });
+    }
   }
 
   const conversationRounds = question.conversation || [];
-  const maxStep = step !== null ? step : conversationRounds.length + (followUpText ? 1 : 0);
+  const stepArg = step !== null ? step : (followUpText ? conversationRounds.length + 1 : conversationRounds.length);
+  const maxStep = stepArg;
+
+  const existingUserCount = existingTranscript.filter(e => e.role === "user").length;
+  const existingAssistantCount = existingTranscript.filter(e => e.role === "assistant").length;
 
   for (let roundIdx = 0; roundIdx < conversationRounds.length; roundIdx++) {
-    if (step !== null && roundIdx >= step) break;
+    if (step !== null && roundIdx >= stepArg) break;
+    if (roundIdx < existingUserCount) continue;
 
     const round = conversationRounds[roundIdx];
     const userContent = await toUserContent(round.user?.parts || []);
@@ -290,7 +298,12 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
       ? round.assistant
       : [{ mode: "generate", content: "" }];
 
+    let assistantIdx = 0;
     for (const assistantItem of assistantItems) {
+      if (roundIdx === existingUserCount - 1 && assistantIdx < existingAssistantCount) {
+        assistantIdx++;
+        continue;
+      }
       const hasManualContent = String(assistantItem?.content || "").trim().length > 0;
       if (hasManualContent) {
         messages.push({ role: "assistant", content: assistantItem.content });
@@ -300,6 +313,7 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
           content: assistantItem.content,
         });
         lastAnswer = assistantItem.content;
+        assistantIdx++;
         continue;
       }
 
@@ -333,10 +347,14 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
         reasoning,
       });
       lastAnswer = answer;
+      assistantIdx++;
     }
   }
 
-  if (followUpText && (step === null || step >= conversationRounds.length)) {
+  const shouldRunFollowUp = followUpText && step !== null && step > conversationRounds.length;
+  const existingFollowUpUser = existingTranscript.find(e => e.isFollowUp && e.role === "user");
+  
+  if (shouldRunFollowUp && !existingFollowUpUser) {
     const followUpMessage = { role: "user", content: followUpText };
     messages.push(followUpMessage);
     transcript.push({

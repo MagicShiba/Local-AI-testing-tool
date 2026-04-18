@@ -912,11 +912,23 @@ async function runSingleTest(questionPath, step = null) {
   if (!item.question) item.question = (await api(`/api/question?path=${encodeURIComponent(questionPath)}`)).content;
 
   const conversationRounds = item.question.conversation || [];
-  const isFollowUp = item.followUpText && item.followUpText.trim();
-  const maxStep = isFollowUp ? conversationRounds.length + 1 : conversationRounds.length;
-  const currentStep = step === null ? 1 : step;
+  const hasFollowUpText = item.followUpText && item.followUpText.trim();
+  const isFollowUpCall = step === null && hasFollowUpText && item.result?.transcript?.some(e => e.role === "assistant");
+  
+  let currentStep;
+  if (step !== null) {
+    currentStep = step;
+  } else if (isFollowUpCall) {
+    currentStep = conversationRounds.length + 1;
+  } else {
+    const existingUserCount = (item.result?.transcript || []).filter(e => e.role === "user").length;
+    currentStep = Math.max(1, existingUserCount + 1);
+  }
+  
+  const maxStep = hasFollowUpText ? conversationRounds.length + 1 : conversationRounds.length;
+  const isInitialRun = step === null && !isFollowUpCall;
 
-  if (step === null) {
+  if (isInitialRun) {
     item.running = true;
     item.result = null;
     item.manualScore = null;
@@ -928,14 +940,16 @@ async function runSingleTest(questionPath, step = null) {
   await refreshTestingView();
   const startTime = Date.now();
   try {
+    const existingTranscript = (step === null || isInitialRun) ? [] : (item.result?.transcript || []);
     const apiResult = await api("/api/run-test", {
       method: "POST",
       body: JSON.stringify({
         preset,
         question: item.question,
-        followUpText: currentStep >= conversationRounds.length ? (item.followUpText || "") : "",
+        followUpText: isFollowUpCall ? item.followUpText : "",
         step: currentStep,
-        preserveMetadata: true
+        preserveMetadata: true,
+        existingTranscript
       })
     });
     const duration = Date.now() - startTime;
