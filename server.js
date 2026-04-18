@@ -235,7 +235,25 @@ async function handleApi(req, res, url) {
     const step = body.step;
     const preserveMetadata = body.preserveMetadata !== false;
     const existingTranscript = body.existingTranscript || [];
-    const execution = await executeQuestion(preset, question, followUpText, step, preserveMetadata, existingTranscript);
+    const abortController = new AbortController();
+    const abortRun = () => abortController.abort();
+    req.once("aborted", abortRun);
+    req.once("close", abortRun);
+    let execution;
+    try {
+      execution = await executeQuestion(
+        preset,
+        question,
+        followUpText,
+        step,
+        preserveMetadata,
+        existingTranscript,
+        abortController.signal
+      );
+    } finally {
+      req.off("aborted", abortRun);
+      req.off("close", abortRun);
+    }
     return respondJson(res, 200, execution);
   }
 
@@ -260,7 +278,7 @@ async function serveDatasetFile(res, url) {
   fs.createReadStream(fullPath).pipe(res);
 }
 
-async function executeQuestion(preset, question, followUpText, step = null, preserveMetadata = true, existingTranscript = []) {
+async function executeQuestion(preset, question, followUpText, step = null, preserveMetadata = true, existingTranscript = [], abortSignal = null) {
   const messages = [];
   const transcript = [];
   const requests = [];
@@ -310,6 +328,7 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
           request: assistantEntry.request,
           response: assistantEntry.response,
           reasoning: assistantEntry.reasoning,
+          _duration: Number(assistantEntry._duration || 0),
         });
         lastAnswer = assistantEntry.content || "";
       }
@@ -351,7 +370,7 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
 
       const requestMessages = cloneJson(messages);
       const reqStartTime = Date.now();
-      const response = await callOpenAI(preset, requestMessages);
+      const response = await callOpenAI(preset, requestMessages, abortSignal);
       const reqDuration = Date.now() - reqStartTime;
       const answer = extractAnswerText(response);
       const reasoning = extractReasoningText(response);
@@ -396,7 +415,7 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
 
     const requestMessages = cloneJson(messages);
     const reqStartTime = Date.now();
-    const response = await callOpenAI(preset, requestMessages);
+    const response = await callOpenAI(preset, requestMessages, abortSignal);
     const reqDuration = Date.now() - reqStartTime;
     const answer = extractAnswerText(response);
     const reasoning = extractReasoningText(response);
@@ -652,7 +671,7 @@ async function toUserContent(parts) {
   return userParts.length === 1 && userParts[0].type === "text" ? userParts[0].text : userParts;
 }
 
-async function callOpenAI(preset, messages) {
+async function callOpenAI(preset, messages, signal = null) {
   if (!preset.baseUrl || !preset.model || !preset.apiKey) {
     throw new Error("请先在设置页填写可用的 baseUrl、model 和 apiKey");
   }
@@ -660,6 +679,7 @@ async function callOpenAI(preset, messages) {
   const extraBody = preset.extraConfigParsed && typeof preset.extraConfigParsed === "object" ? preset.extraConfigParsed : {};
   const resp = await fetch(endpoint, {
     method: "POST",
+    signal,
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${preset.apiKey}`,

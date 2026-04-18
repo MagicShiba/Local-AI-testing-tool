@@ -134,7 +134,7 @@ main { padding: 2px; }
 }
 .test-side { border-left: 1px solid var(--line); padding: 4px; }
 .message-controls { margin: 4px 0 6px; display: flex; gap: 6px; flex-wrap: wrap; }
-.message-bubble { padding: 0px 4px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 6px; white-space: pre-wrap; word-break: break-word; }
+.message-bubble { padding: 0px 4px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 6px; word-break: break-word; }
 .message-bubble p { margin: 3px  0px; }
 .message-bubble ol { margin: 0 0 4px 0; }
 .message-bubble li { margin: 0 0 4px 0; }
@@ -147,7 +147,7 @@ main { padding: 2px; }
 .message-assistant-wrap { margin-bottom: 3px; }
 .test-card summary { cursor: pointer; list-style: none; }
 .test-card summary::-webkit-details-marker { display: none; }
-.test-header { display: grid; grid-template-columns: minmax(0, 1fr) 55px auto 70px; align-items: center; gap: 8px; }
+.test-header { display: grid; grid-template-columns: minmax(0, 1fr) 55px auto 85px; align-items: center; gap: 4px; }
 .test-title { font-weight: 600; }
 .test-meta, .muted { color: var(--muted); font-size: 13px; }
 .score-badge, .score-summary { font-weight: 600; color: var(--primary); }
@@ -411,3 +411,11 @@ blockquote{
   left: -5px;
 }
 
+.message-controls > button{
+    border: 1px solid green;
+    background: #fff;
+    cursor: pointer;
+    margin: -5px 5px;
+    border-top: unset;
+    border-radius: 0px;
+}

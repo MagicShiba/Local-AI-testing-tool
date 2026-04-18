@@ -953,21 +953,29 @@ function normalizeMessageText(text) {
 async function runSingleTest(questionPath, step = null) {
   const item = state.testingItems.find((entry) => entry.path === questionPath);
   if (!item) return;
+  const isTopLevelRun = step === null;
+  if (isTopLevelRun) {
+    item.stopRequested = false;
+  }
   if ((state.isBatchRunning && state.stopAllRequested) || item.stopRequested) {
     item.running = false;
     return;
   }
-  if (item.running && step === null) return;
+  if (item.running && isTopLevelRun) return;
   const preset = getTestingPreset();
   if (!preset) return;
   if (!item.question) item.question = (await api(`/api/question?path=${encodeURIComponent(questionPath)}`)).content;
 
   const conversationRounds = item.question.conversation || [];
   const hasFollowUpText = item.followUpText && item.followUpText.trim();
-  const isFollowUpCall = step === null && hasFollowUpText && item.result?.transcript?.some(e => e.role === "assistant");
+  const hasExistingAssistant = Boolean(item.result?.transcript?.some(e => e.role === "assistant"));
+  const isFollowUpCall = isTopLevelRun && hasFollowUpText && hasExistingAssistant;
+  const isInitialRun = isTopLevelRun && !isFollowUpCall;
   
   let currentStep;
-  if (step !== null) {
+  if (isInitialRun) {
+    currentStep = 1;
+  } else if (step !== null) {
     currentStep = step;
   } else if (isFollowUpCall) {
     currentStep = conversationRounds.length + 1;
@@ -977,7 +985,6 @@ async function runSingleTest(questionPath, step = null) {
   }
   
   const maxStep = hasFollowUpText ? conversationRounds.length + 1 : conversationRounds.length;
-  const isInitialRun = step === null && !isFollowUpCall;
   if (DEBUG_TEST_FLOW) {
     console.log("[runSingleTest:start]", {
       questionPath,
@@ -1006,7 +1013,7 @@ async function runSingleTest(questionPath, step = null) {
   const controller = new AbortController();
   item.abortController = controller;
   try {
-    const existingTranscript = (step === null || isInitialRun) ? [] : (item.result?.transcript || []);
+    const existingTranscript = isInitialRun ? [] : (item.result?.transcript || []);
     const apiResult = await api("/api/run-test", {
       method: "POST",
       signal: controller.signal,
@@ -1385,8 +1392,54 @@ function renderMarkdown(source) {
   if (!source) return "";
   const md = typeof marked !== 'undefined' ? marked : window.marked;
   const hl = typeof hljs !== 'undefined' ? hljs : window.hljs;
-  const html = md.parse(normalizeMessageText(source), { breaks: true, gfm: true });
+  const normalized = normalizeMessageText(source);
+  const withBlankLines = preserveMarkdownBlankLines(normalized);
+  const html = md.parse(withBlankLines, { breaks: true, gfm: true });
   return enhanceCodeBlocks(html, hl);
+}
+
+function preserveMarkdownBlankLines(source) {
+  const text = String(source || "");
+  const lines = text.split("\n");
+  const out = [];
+  let inFence = false;
+  let fenceChar = "";
+  let fenceLen = 0;
+
+  const isFenceLine = (line) => {
+    const m = line.match(/^ {0,3}(`{3,}|~{3,})([^`]*)$/);
+    if (!m) return null;
+    return { mark: m[1], rest: m[2] || "" };
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const info = isFenceLine(line);
+
+    if (!inFence) {
+      if (info) {
+        inFence = true;
+        fenceChar = info.mark[0];
+        fenceLen = info.mark.length;
+        out.push(line);
+        continue;
+      }
+      out.push(/^[ \t]*$/.test(line) ? "&nbsp;" : line);
+      continue;
+    }
+
+    if (info && info.mark[0] === fenceChar && info.mark.length >= fenceLen) {
+      inFence = false;
+      fenceChar = "";
+      fenceLen = 0;
+      out.push(line);
+      continue;
+    }
+
+    out.push(line);
+  }
+
+  return out.join("\n");
 }
 
 function handleDocumentClick(e) {
