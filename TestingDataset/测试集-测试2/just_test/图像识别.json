@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "title": "模仿《过秦论》风格,写一篇过美国论",
-  "score": 3,
+  "title": "",
+  "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
   "note": "",
   "expectedAnswer": "",
@@ -12,7 +12,11 @@
         "parts": [
           {
             "type": "text",
-            "text": "模仿《过秦论》的古文风格，写一篇过美国论。"
+            "text": "描述每一个格子柴犬的动作和表情。"
+          },
+          {
+            "type": "image",
+            "assetPath": "测试集-测试2/assets/test_image.jpg"
           }
         ]
       },
@@ -20,8 +24,8 @@
     }
   ],
   "metadata": {
-    "createdAt": "2026-04-18T04:13:51.741Z",
-    "updatedAt": "2026-04-19T17:00:03.006Z",
-    "filename": "模仿09《过秦论》的古文风格,写一篇过美国论.json"
+    "createdAt": "2026-04-19T12:25:54.124Z",
+    "updatedAt": "2026-04-19T12:27:13.506Z",
+    "filename": "图像识别.json"
   }
 }

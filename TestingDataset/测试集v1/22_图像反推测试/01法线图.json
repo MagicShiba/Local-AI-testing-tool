@@ -16,7 +16,7 @@
           },
           {
             "type": "image",
-            "assetPath": "测试集v1/assets/法线贴图识别.png"
+            "assetPath": "测试集v1/assets/法线贴图识别.jpg"
           }
         ]
       },
@@ -46,7 +46,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-16T15:17:28.121Z",
-    "updatedAt": "2026-04-16T15:31:33.564Z",
+    "updatedAt": "2026-04-19T14:42:58.623Z",
     "filename": "01法线图.json"
   }
 }

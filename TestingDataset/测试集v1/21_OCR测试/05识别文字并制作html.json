@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "title": "第二数据集 - 功能验证用 - 你应该玩第一个，也可以建立自己的测试题",
+  "title": "识别文字并制作html",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "note": "验证多个数据集是否可行",
+  "note": "",
   "expectedAnswer": "",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
@@ -12,7 +12,11 @@
         "parts": [
           {
             "type": "text",
-            "text": "编写一段js,显示当前年月日"
+            "text": "制作一个html复刻图中界面布局，完整保留文字。图像可以使用相同意思的emoji。\n头像无法使用emoji替代就绘制一个圆，然后圆中画个X"
+          },
+          {
+            "type": "image",
+            "assetPath": "测试集v1/assets/ocr2.jpg"
           }
         ]
       },
@@ -25,8 +29,8 @@
     }
   ],
   "metadata": {
-    "createdAt": "2026-04-19T08:34:20.256Z",
-    "updatedAt": "2026-04-19T13:08:24.913Z",
-    "filename": "测试.json"
+    "createdAt": "2026-04-19T14:13:50.742Z",
+    "updatedAt": "2026-04-19T14:26:09.862Z",
+    "filename": "05识别文字并制作html.json"
   }
 }

@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "title": "解答数学题，计算WIFI密码",
+  "title": "描述内容和提取文字，并说明背后原因",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "note": "一般人wifi密码不带标点\n而且已经说了不带标点\n适当扣分",
-  "expectedAnswer": "31415926",
+  "note": "",
+  "expectedAnswer": "",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
     {
@@ -12,11 +12,11 @@
         "parts": [
           {
             "type": "text",
-            "text": "回答图中问题"
+            "text": "描述图像内容，提取图中文字。"
           },
           {
             "type": "image",
-            "assetPath": "测试集v1/assets/ocr-math.png"
+            "assetPath": "测试集v1/assets/ocr1.jpg"
           }
         ]
       },
@@ -32,16 +32,21 @@
         "parts": [
           {
             "type": "text",
-            "text": "上面是一道测试题，下面将由程序自动判定结果。\n你只需要回答结果，不带标点。"
+            "text": "为什么会有这样的meme?"
           }
         ]
       },
-      "assistant": []
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
     }
   ],
   "metadata": {
-    "createdAt": "2026-04-14T12:30:49.574Z",
-    "updatedAt": "2026-04-19T17:04:05.084Z",
-    "filename": "02ocr和数学计算.json"
+    "createdAt": "2026-04-19T13:49:34.833Z",
+    "updatedAt": "2026-04-19T13:54:18.714Z",
+    "filename": "03ocr1.json"
   }
 }

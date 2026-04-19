@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "title": "识图和逻辑错误检查",
+  "title": "模糊截图推测遮挡内容",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "note": "看AI能否识别出时间错误\n图中是Qwen3.5 9B",
-  "expectedAnswer": "B",
+  "note": "毫无修饰的文“字更加是有冲击力”",
+  "expectedAnswer": "字更加是有冲击力",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
     {
@@ -12,11 +12,11 @@
         "parts": [
           {
             "type": "text",
-            "text": "图中反映了什么问题？"
+            "text": "提取图中所有文本，推测水印遮挡的回答文字是什么"
           },
           {
             "type": "image",
-            "assetPath": "测试集v1/assets/ocr-逻辑推断.png"
+            "assetPath": "测试集v1/assets/ocr-3.jpg"
           }
         ]
       },
@@ -32,7 +32,7 @@
         "parts": [
           {
             "type": "text",
-            "text": "上面是一道测试题，下面将由程序自动判定结果。\n请根据上面回答，你看出来图中有什么逻辑问题了吗？\n你只需要输出选项即可。\nA : 没有逻辑问题\nB : 存在时间上的逻辑悖论\nC : 现在是2024年，图中虚构了2026年"
+            "text": "上面是一道测试题，下面将由程序自动判定结果。\n你只需要输出普岛回复中被遮挡的字"
           }
         ]
       },
@@ -45,8 +45,8 @@
     }
   ],
   "metadata": {
-    "createdAt": "2026-04-14T12:30:49.574Z",
-    "updatedAt": "2026-04-19T13:19:51.907Z",
-    "filename": "01ocr和逻辑检查.json"
+    "createdAt": "2026-04-19T13:54:55.107Z",
+    "updatedAt": "2026-04-19T14:01:18.277Z",
+    "filename": "04模糊截图推测遮挡内容.json"
   }
 }

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "",
-  "score": 1,
+  "score": 0.2,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
   "note": "随时修改，debug用\n当前问题：\n测试助手回答模式\nai回答后有表格，渲染表格检查表格问题",
   "expectedAnswer": "",
@@ -30,7 +30,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-16T05:13:49.691Z",
-    "updatedAt": "2026-04-19T06:13:04.354Z",
+    "updatedAt": "2026-04-19T12:38:58.663Z",
     "filename": "01临时测试.json"
   }
 }

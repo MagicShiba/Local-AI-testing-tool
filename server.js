@@ -18,6 +18,8 @@ ensureDirSync(APP_DATA_DIR);
 ensureDirSync(RESULTS_DIR);
 const NOTES_DIR = path.join(APP_DATA_DIR, "note");
 ensureDirSync(NOTES_DIR);
+const NOTE_IMAGE_DIR = path.join(APP_DATA_DIR, "note", "image");
+ensureDirSync(NOTE_IMAGE_DIR);
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -82,6 +84,11 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname.startsWith("/dataset-file/")) {
       await serveDatasetFile(res, url);
+      return;
+    }
+
+    if (url.pathname.startsWith("/note-image/")) {
+      await serveNoteImage(res, url);
       return;
     }
 
@@ -323,6 +330,16 @@ async function serveStatic(res, url) {
 
 async function serveDatasetFile(res, url) {
   const fullPath = resolveDatasetPath(decodeURIComponent(url.pathname.replace("/dataset-file/", "")));
+  const stat = await fsp.stat(fullPath).catch(() => null);
+  if (!stat || !stat.isFile()) return respondText(res, 404, "Not Found");
+  res.writeHead(200, { "Content-Type": MIME[path.extname(fullPath).toLowerCase()] || "application/octet-stream" });
+  fs.createReadStream(fullPath).pipe(res);
+}
+
+async function serveNoteImage(res, url) {
+  const relPath = decodeURIComponent(url.pathname.replace("/note-image/", ""));
+  const fullPath = path.resolve(NOTE_IMAGE_DIR, relPath.replaceAll("..", ""));
+  if (!fullPath.startsWith(NOTE_IMAGE_DIR)) return respondText(res, 403, "Forbidden");
   const stat = await fsp.stat(fullPath).catch(() => null);
   if (!stat || !stat.isFile()) return respondText(res, 404, "Not Found");
   res.writeHead(200, { "Content-Type": MIME[path.extname(fullPath).toLowerCase()] || "application/octet-stream" });
