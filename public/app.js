@@ -1412,6 +1412,52 @@ function preserveMarkdownBlankLines(source) {
     return { mark: m[1], rest: m[2] || "" };
   };
 
+  const stripOneBlockquote = (line) => {
+    const m = String(line || "").match(/^ {0,3}> ?(.*)$/);
+    return m ? m[1] : line;
+  };
+
+  const tableLineCore = (line) => {
+    let s = String(line || "").trimEnd();
+    for (let d = 0; d < 3; d++) {
+      const next = stripOneBlockquote(s);
+      if (next === s) break;
+      s = next.trimStart();
+    }
+    return s.trim();
+  };
+
+  const looksLikeMarkdownTableLine = (line) => {
+    const t = tableLineCore(line);
+    if (!t || !t.includes("|")) return false;
+    if (/^\|?[\s\-:|]+\|\s*$/.test(t) && /-{2,}/.test(t)) return true;
+    if (/^\|.+\|/.test(t)) return true;
+    return false;
+  };
+
+  const isMarkdownTableDelimiterRow = (line) => {
+    const t = tableLineCore(line);
+    if (!t.includes("|") || !/-{2,}/.test(t)) return false;
+    const core = t.replace(/^\|/, "").replace(/\|\s*$/, "");
+    const cells = core.split("|").map((c) => c.trim()).filter((c) => c.length > 0);
+    if (cells.length < 2) return false;
+    return cells.every((c) => /^:?-{3,}:?$/.test(c));
+  };
+
+  const TABLE_BLANK_SPACER = '<p class="md-preserved-blank">&nbsp;</p>';
+
+  const lastMeaningfulForBlank = (arr) => {
+    for (let j = arr.length - 1; j >= 0; j--) {
+      const s = arr[j];
+      if (s === "") continue;
+      if (/^[ \t]*$/.test(s)) continue;
+      if (s === "&nbsp;") continue;
+      if (s === TABLE_BLANK_SPACER) continue;
+      return s;
+    }
+    return null;
+  };
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const info = isFenceLine(line);
@@ -1424,7 +1470,19 @@ function preserveMarkdownBlankLines(source) {
         out.push(line);
         continue;
       }
-      out.push(/^[ \t]*$/.test(line) ? "&nbsp;" : line);
+      if (/^[ \t]*$/.test(line)) {
+        const prev = lastMeaningfulForBlank(out);
+        if (prev && looksLikeMarkdownTableLine(prev) && !isMarkdownTableDelimiterRow(prev)) {
+          out.push(TABLE_BLANK_SPACER);
+          out.push("");
+        } else if (prev && looksLikeMarkdownTableLine(prev) && isMarkdownTableDelimiterRow(prev)) {
+          out.push("");
+        } else {
+          out.push("&nbsp;");
+        }
+        continue;
+      }
+      out.push(line);
       continue;
     }
 

@@ -136,6 +136,11 @@ main { padding: 2px; }
 .message-controls { margin: 4px 0 6px; display: flex; gap: 6px; flex-wrap: wrap; }
 .message-bubble { padding: 0px 4px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 6px; word-break: break-word; }
 .message-bubble p { margin: 3px  0px; }
+.message-bubble p.md-preserved-blank {
+  margin: 0.35em 0;
+  line-height: 1.25;
+  min-height: 1em;
+}
 .message-bubble ol { margin: 0 0 4px 0; }
 .message-bubble li { margin: 0 0 4px 0; }
 .message-bubble ul { margin: 0 0 4px 0; }
@@ -418,4 +423,46 @@ blockquote{
     margin: -5px 5px;
     border-top: unset;
     border-radius: 0px;
+}
+
+/* 表格修正 */
+.message-bubble > table{
+	    border: 1px solid grey;
+}
+
+.message-bubble > table {
+    border-collapse: collapse ; 
+    background-color: #ffffff ; 
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) ;
+    border-radius: 4px ;
+    overflow: hidden ; /* 配合圆角使用 */
+}
+
+.message-bubble > table thead tr {
+    background-color: #f8f9fa ; 
+    border-bottom: 2px solid #eceef1 ;
+}
+
+.message-bubble > table th {
+    padding: 4px 5px ;
+    font-weight: 600 ;
+    letter-spacing: 0.5px ;
+}
+.message-bubble > table td {
+    padding: 3px 4px ;
+    border-bottom: 1px solid #f0f0f0 ;
+    line-height: 1.3 ;
+}
+
+.message-bubble > table tbody tr:nth-of-type(even) {
+    background-color: #eeeeee ;
+}
+
+.message-bubble > table tbody tr:hover {
+    background-color: #f1f4ff ; 
+    transition: background-color 0.2s ease ;
+}
+
+.message-bubble > table tbody tr:last-of-type td {
+    border-bottom: none ;
 }
