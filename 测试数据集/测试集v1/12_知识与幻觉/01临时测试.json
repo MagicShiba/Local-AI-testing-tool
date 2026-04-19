@@ -3,7 +3,7 @@
   "title": "",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "note": "随时修改，debug用\n当前问题渲染表格检查表格问题",
+  "note": "随时修改，debug用\n当前问题：\n测试助手回答模式\nai回答后有表格，渲染表格检查表格问题",
   "expectedAnswer": "",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
@@ -16,12 +16,21 @@
           }
         ]
       },
-      "assistant": []
+      "assistant": [
+        {
+          "mode": "continue",
+          "content": "好的"
+        },
+        {
+          "mode": "continue",
+          "content": ""
+        }
+      ]
     }
   ],
   "metadata": {
     "createdAt": "2026-04-16T05:13:49.691Z",
-    "updatedAt": "2026-04-19T02:42:13.667Z",
+    "updatedAt": "2026-04-19T06:13:04.354Z",
     "filename": "01临时测试.json"
   }
 }
