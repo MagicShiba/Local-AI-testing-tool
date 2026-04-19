@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "title": "汉字的序顺不影响读阅",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "我们把答回的容内序顺乱打，在添甲点错另刂字，样这那群外老就不懂看了。"
+          },
+          {
+            "type": "text",
+            "text": "将上文转换为正确的句子，然后翻译成英文。"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-18T17:20:04.477Z",
+    "updatedAt": "2026-04-19T03:08:42.855Z",
+    "filename": "00汉字的顺序.json"
+  }
+}

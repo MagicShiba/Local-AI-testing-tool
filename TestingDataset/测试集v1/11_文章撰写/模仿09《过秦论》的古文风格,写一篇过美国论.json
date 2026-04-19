@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "title": "模仿《过秦论》风格,写一篇过美国论",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "模仿《过秦论》的古文风格，写一篇过美国论。"
+          }
+        ]
+      },
+      "assistant": []
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-18T04:13:51.741Z",
+    "updatedAt": "2026-04-18T04:14:25.479Z",
+    "filename": "模仿09《过秦论》的古文风格,写一篇过美国论.json"
+  }
+}

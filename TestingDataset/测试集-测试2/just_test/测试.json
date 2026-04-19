@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "title": "第二数据集验证",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "编写一段js,显示当前年月日"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "continue",
+          "content": "好的"
+        },
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-19T08:34:20.256Z",
+    "updatedAt": "2026-04-19T11:06:45.790Z",
+    "filename": "测试.json"
+  }
+}

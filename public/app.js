@@ -11,10 +11,16 @@ const state = {
   isBatchRunning: false,
   isLoadingResult: false,
   hasUnsavedChanges: false,
+  notes: [],
+  currentNoteId: "",
+  currentNote: null,
+  noteViewMode: "markdown",
+  noteSortBy: "name",
 };
 
 const DEBUG_TEST_FLOW = false;
 const LAST_PAGE_KEY = "lastActivePage";
+const LAST_TESTING_SET_KEY = "lastTestingSet";
 
 const els = {
   tabs: [...document.querySelectorAll(".tab")],
@@ -52,17 +58,24 @@ const els = {
   collapseAllFloatBtn: document.getElementById("collapseAllFloatBtn"),
   scrollTopBtn: document.getElementById("scrollTopBtn"),
   stopTestBtn: document.getElementById("stopTestBtn"),
+  notesList: document.getElementById("notesList"),
+  notesEmpty: document.getElementById("notesEmpty"),
+  notesEditor: document.getElementById("notesEditor"),
+  noteTitle: document.getElementById("noteTitle"),
+  noteContent: document.getElementById("noteContent"),
+  notePreview: document.getElementById("notePreview"),
 };
 
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   bindEvents();
-  await Promise.all([loadTree(), loadSettings(), loadResults()]);
+  await Promise.all([loadTree(), loadSettings(), loadResults(), loadNotes()]);
   syncTestingSelectors();
   renderEditor();
+  renderNotes();
   const initialPage = localStorage.getItem(LAST_PAGE_KEY);
-  if (initialPage === "testing" || initialPage === "settings" || initialPage === "editor") {
+  if (initialPage === "testing" || initialPage === "settings" || initialPage === "editor" || initialPage === "notes") {
     switchPage(initialPage, { skipUnsavedCheck: true });
   }
 }
@@ -70,10 +83,33 @@ async function init() {
 function bindEvents() {
   els.tabs.forEach((tab) => tab.addEventListener("click", () => switchPage(tab.dataset.page)));
   document.getElementById("refreshTreeBtn").addEventListener("click", loadTree);
+  document.getElementById("newNoteBtn").addEventListener("click", createNewNote);
+  document.getElementById("saveNoteBtn").addEventListener("click", saveNote);
+  document.getElementById("deleteNoteBtn").addEventListener("click", deleteNote);
+  document.getElementById("viewMarkdownBtn").addEventListener("click", () => setNoteViewMode("markdown"));
+  document.getElementById("viewRawBtn").addEventListener("click", () => setNoteViewMode("raw"));
+  els.noteContent.addEventListener("input", () => {
+    if (state.noteViewMode === "markdown") {
+      renderNotePreview();
+    }
+  });
   document.getElementById("createSetBtn").addEventListener("click", createSet);
   document.getElementById("createFolderBtn").addEventListener("click", createFolder);
   document.getElementById("createQuestionBtn").addEventListener("click", createQuestion);
   document.getElementById("addRoundBtn").addEventListener("click", () => addRound());
+  document.getElementById("sortByNameBtn").addEventListener("click", () => setNoteSortBy("name"));
+  document.getElementById("sortByTimeBtn").addEventListener("click", () => setNoteSortBy("time"));
+  els.testingSetSelect.addEventListener("change", () => {
+    state.testingSet = els.testingSetSelect.value;
+    localStorage.setItem(LAST_TESTING_SET_KEY, state.testingSet);
+    const currentPage = localStorage.getItem(LAST_PAGE_KEY);
+    if (currentPage === "editor") {
+      renderEditorTree();
+    } else if (currentPage === "testing") {
+      state.testingSelectedPath = "";
+      renderTestingList();
+    }
+  });
   els.saveQuestionBtn.addEventListener("click", saveQuestion);
   els.quickRunQuestionBtn.addEventListener("click", quickRunCurrentQuestion);
   document.getElementById("newPresetBtn").addEventListener("click", createPreset);
@@ -91,11 +127,6 @@ function bindEvents() {
   els.scrollTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
   els.stopTestBtn.addEventListener("click", stopAllTests);
   document.addEventListener("click", handleDocumentClick);
-  els.testingSetSelect.addEventListener("change", () => {
-    state.testingSet = els.testingSetSelect.value;
-    state.testingSelectedPath = "";
-    renderTestingList();
-  });
   els.testingPresetSelect.addEventListener("change", () => {
     state.testingPresetId = els.testingPresetSelect.value;
   });
@@ -138,6 +169,22 @@ function switchPage(page, options = {}) {
   els.tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.page === page));
   els.pages.forEach((section) => section.classList.toggle("active", section.id === `page-${page}`));
   localStorage.setItem(LAST_PAGE_KEY, page);
+  updateEditorSetSelectVisibility(page);
+  if (page === "editor") {
+    renderEditorTree();
+  } else if (page === "testing") {
+    renderTestingList();
+  }
+}
+
+function updateEditorSetSelectVisibility(page) {
+  const editorSetSelectEl = document.querySelector(".editor-set-select");
+  if (!editorSetSelectEl) return;
+  if (page === "editor" || page === "testing") {
+    editorSetSelectEl.classList.remove("hidden");
+  } else {
+    editorSetSelectEl.classList.add("hidden");
+  }
 }
 
 async function api(path, options = {}) {
@@ -154,34 +201,52 @@ async function loadTree() {
 }
 
 function renderTree() {
+  renderEditorTree();
+}
+
+function renderEditorTree() {
   els.tree.innerHTML = "";
-  state.tree.sets.forEach((set) => {
-    const setEl = document.createElement("div");
-    setEl.className = "tree-set";
-    setEl.innerHTML = `<strong>${escapeHtml(set.name)}</strong>`;
-    set.folders.forEach((folder) => {
-      const folderEl = document.createElement("div");
-      folderEl.className = "tree-folder";
-      folderEl.innerHTML = `<div><strong>${escapeHtml(folder.name)}</strong></div>`;
-      enableFolderDrop(folderEl, set.name, folder.name);
-      folder.questions.forEach((question) => {
-        const qEl = document.createElement("div");
-        qEl.className = `tree-question${state.selectedQuestionPath === question.path ? " active" : ""}`;
-        qEl.draggable = true;
-        qEl.dataset.path = question.path;
-        qEl.innerHTML = `<div>${escapeHtml(question.title || question.name)}</div><div class="muted">${escapeHtml(question.name)} · ${question.score}分</div>`;
-        qEl.addEventListener("click", () => openQuestion(question.path));
-        qEl.addEventListener("dragstart", (event) => {
-          qEl.classList.add("dragging");
-          event.dataTransfer.setData("text/plain", question.path);
-        });
-        qEl.addEventListener("dragend", () => qEl.classList.remove("dragging"));
-        folderEl.appendChild(qEl);
+  const currentSet = state.testingSet || state.tree.sets[0]?.name || "";
+  const set = state.tree.sets.find((s) => s.name === currentSet);
+  if (!set) return;
+  const setEl = document.createElement("div");
+  setEl.className = "tree-set";
+  setEl.innerHTML = `<strong>${escapeHtml(set.name)}</strong>`;
+  set.folders.forEach((folder) => {
+    const folderEl = document.createElement("div");
+    folderEl.className = "tree-folder";
+    folderEl.innerHTML = `<div><strong>${escapeHtml(folder.name)}</strong></div>`;
+    enableFolderDrop(folderEl, set.name, folder.name);
+    folder.questions.forEach((question) => {
+      const qEl = document.createElement("div");
+      qEl.className = `tree-question${state.selectedQuestionPath === question.path ? " active" : ""}`;
+      qEl.draggable = true;
+      qEl.dataset.path = question.path;
+      qEl.innerHTML = `<div>${escapeHtml(question.title || question.name)}</div><div class="muted">${escapeHtml(question.name)} · ${question.score}分</div>`;
+      qEl.addEventListener("click", () => openQuestion(question.path));
+      qEl.addEventListener("dragstart", (event) => {
+        qEl.classList.add("dragging");
+        event.dataTransfer.setData("text/plain", question.path);
       });
-      setEl.appendChild(folderEl);
+      qEl.addEventListener("dragend", () => qEl.classList.remove("dragging"));
+      folderEl.appendChild(qEl);
     });
-    els.tree.appendChild(setEl);
+    setEl.appendChild(folderEl);
   });
+  els.tree.appendChild(setEl);
+}
+
+function fillEditorSetSelect() {
+  if (!els.testingSetSelect) return;
+  els.testingSetSelect.innerHTML = "";
+  state.tree.sets.forEach((set) => {
+    const option = document.createElement("option");
+    option.value = set.name;
+    option.textContent = set.name;
+    option.selected = set.name === state.testingSet;
+    els.testingSetSelect.appendChild(option);
+  });
+  state.testingSet = els.testingSetSelect.value || state.tree.sets[0]?.name || "";
 }
 
 function enableFolderDrop(folderEl, setName, folderName) {
@@ -505,6 +570,8 @@ async function saveSettings() {
 }
 
 async function syncTestingSelectors() {
+  const savedSet = localStorage.getItem(LAST_TESTING_SET_KEY);
+  state.testingSet = savedSet || state.tree.sets[0]?.name || "";
   els.testingSetSelect.innerHTML = "";
   state.tree.sets.forEach((set) => {
     const option = document.createElement("option");
@@ -513,7 +580,10 @@ async function syncTestingSelectors() {
     option.selected = set.name === state.testingSet;
     els.testingSetSelect.appendChild(option);
   });
-  state.testingSet = els.testingSetSelect.value || state.tree.sets[0]?.name || "";
+  if (!state.testingSet && state.tree.sets[0]) {
+    state.testingSet = state.tree.sets[0].name;
+    els.testingSetSelect.value = state.testingSet;
+  }
   if (!state.testingPresetId) state.testingPresetId = state.settings.activePresetId || state.settings.presets[0]?.id || "";
   await renderTestingList();
 }
@@ -1368,4 +1438,110 @@ function cssEscape(value) {
     return window.CSS.escape(value);
   }
   return String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+async function loadNotes() {
+  state.notes = await api("/api/notes");
+}
+
+function renderNotes() {
+  if (!els.notesList) return;
+  els.notesList.innerHTML = "";
+  const sortedNotes = [...state.notes].sort((a, b) => {
+    if (state.noteSortBy === "time") {
+      return String(b.updatedAt).localeCompare(String(a.updatedAt));
+    }
+    return String(a.title || a.id).localeCompare(String(b.title || b.id), "zh-Hans-CN");
+  });
+  sortedNotes.forEach((note) => {
+    const item = document.createElement("div");
+    item.className = `notes-item${state.currentNoteId === note.id ? " active" : ""}`;
+    item.dataset.id = note.id;
+    const date = note.updatedAt ? new Date(note.updatedAt).toLocaleString("zh-CN") : "";
+    item.innerHTML = `<div class="notes-item-title">${escapeHtml(note.title || "无标题")}</div><div class="notes-item-date">${date}</div>`;
+    item.addEventListener("click", () => openNote(note.id));
+    els.notesList.appendChild(item);
+  });
+}
+
+function setNoteSortBy(sortBy) {
+  state.noteSortBy = sortBy;
+  document.getElementById("sortByNameBtn").classList.toggle("active", sortBy === "name");
+  document.getElementById("sortByTimeBtn").classList.toggle("active", sortBy === "time");
+  renderNotes();
+}
+
+async function createNewNote() {
+  const newNote = { title: "", content: "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  const result = await api("/api/note", { method: "POST", body: JSON.stringify(newNote) });
+  await loadNotes();
+  openNote(result.id);
+}
+
+async function openNote(id) {
+  if (!id) return;
+  try {
+    const note = await api(`/api/note?id=${encodeURIComponent(id)}`);
+    state.currentNoteId = id;
+    state.currentNote = note;
+    renderNoteEditor();
+    renderNotes();
+  } catch (e) {
+    console.error("Failed to open note:", e);
+  }
+}
+
+function renderNoteEditor() {
+  if (!state.currentNote) {
+    els.notesEmpty?.classList.remove("hidden");
+    els.notesEditor?.classList.add("hidden");
+    return;
+  }
+  els.notesEmpty?.classList.add("hidden");
+  els.notesEditor?.classList.remove("hidden");
+  els.noteTitle.value = state.currentNote.title || "";
+  els.noteContent.value = state.currentNote.content || "";
+  renderNotePreview();
+}
+
+function renderNotePreview() {
+  if (!els.notePreview) return;
+  const content = els.noteContent.value;
+  if (state.noteViewMode === "markdown") {
+    els.noteContent.classList.add("hidden");
+    els.notePreview.classList.remove("hidden");
+    els.notePreview.innerHTML = renderMarkdown(content);
+  } else {
+    els.noteContent.classList.remove("hidden");
+    els.notePreview.classList.add("hidden");
+  }
+}
+
+function setNoteViewMode(mode) {
+  state.noteViewMode = mode;
+  document.getElementById("viewMarkdownBtn").classList.toggle("active", mode === "markdown");
+  document.getElementById("viewRawBtn").classList.toggle("active", mode === "raw");
+  renderNotePreview();
+}
+
+async function saveNote() {
+  if (!state.currentNoteId || !state.currentNote) return;
+  const payload = {
+    id: state.currentNoteId,
+    title: els.noteTitle.value,
+    content: els.noteContent.value,
+    createdAt: state.currentNote.createdAt,
+  };
+  await api("/api/note", { method: "POST", body: JSON.stringify(payload) });
+  await loadNotes();
+}
+
+async function deleteNote() {
+  if (!state.currentNoteId || !confirm("确定要删除这篇笔记吗？")) return;
+  await api("/api/note-delete", { method: "POST", body: JSON.stringify({ id: state.currentNoteId }) });
+  state.currentNoteId = "";
+  state.currentNote = null;
+  await loadNotes();
+  renderNoteEditor();
+  renderNotes();
 }

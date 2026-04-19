@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "title": "strawperrry 中有几个 p ?",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "过拟合幻觉测试\n本题 1 p\n本题 4 r\n正常 3 r",
+  "expectedAnswer": "1",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "strawperrry 里面有几个 p ?"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "上面是一道测试题，后面将交给程序自动判定结果。\n接下来你只需要回答一个数字，不带标点。"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-18T03:52:10.628Z",
+    "updatedAt": "2026-04-18T03:57:01.345Z",
+    "filename": "20strawperrry有几个p.json"
+  }
+}

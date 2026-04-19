@@ -13,10 +13,16 @@
         <div>
           <h1>本地AI能力测试项目</h1>
           <p>题库编辑、OpenAI API 设置与批量测试</p>
+
         </div>
+<div class="editor-set-select hidden">
+            <label>测试集</label>
+            <select id="testingSetSelect"></select>
+ 		</div>
         <nav class="tabs">
           <button class="tab active" data-page="editor">题库编辑器</button>
           <button class="tab" data-page="testing">测试</button>
+          <button class="tab" data-page="notes">笔记</button>
           <button class="tab" data-page="settings">设置</button>
         </nav>
       </header>
@@ -114,6 +120,42 @@
           </div>
         </section>
 
+        <section class="page" id="page-notes">
+          <div class="notes-layout">
+            <aside class="notes-sidebar">
+              <div class="panel-header">
+                <h2>笔记列表</h2>
+                <div class="notes-sort-btns">
+                  <button id="sortByNameBtn" class="sort-btn active">文件名</button>
+                  <button id="sortByTimeBtn" class="sort-btn">时间</button>
+                </div>
+              </div>
+              <div class="notes-new">
+                <button id="newNoteBtn">新建笔记</button>
+              </div>
+              <div id="notesList"></div>
+            </aside>
+            <section class="notes-content">
+              <div id="notesEmpty" class="empty-state">从左侧选择一篇笔记或新建笔记。</div>
+              <div id="notesEditor" class="hidden">
+                <div class="panel-header sticky">
+                  <div class="title-input-wrap"><input id="noteTitle" type="text" placeholder="笔记标题" /></div>
+                  <div class="toolbar">
+                    <button id="deleteNoteBtn">删除</button>
+                    <button id="saveNoteBtn">保存</button>
+                  </div>
+                </div>
+                <div class="notes-view-toggle">
+                  <button id="viewMarkdownBtn" class="active">预览</button>
+                  <button id="viewRawBtn">编辑</button>
+                </div>
+                <textarea id="noteContent" placeholder="笔记内容（支持Markdown）"></textarea>
+                <div id="notePreview" class="message-bubble"></div>
+              </div>
+            </section>
+          </div>
+        </section>
+
         <section class="page" id="page-settings">
           <div class="single-panel">
             <div class="panel-header">
@@ -138,7 +180,7 @@
               <div class="settings-main">
                 <div class="field">
                   <label>模型名称</label>
-                  <input id="model" type="text" placeholder="gpt-4.1 / gpt-4o / 自定义模型" />
+                  <input id="model" type="text" placeholder="模型名称" title="LMS 随便填写就可以使用当前加载的模型"/>
                 </div>
                 <div class="field">
                   <label>接口地址</label>
@@ -146,7 +188,7 @@
                 </div>
                 <div class="field">
                   <label>API Key</label>
-                  <input id="apiKey" type="password" />
+                  <input id="apiKey" type="password" title="本地随便填" />
                 </div>
                 <div class="field">
                   <label>额外请求参数（JSON）</label>
@@ -166,10 +208,6 @@
               <h3>测试执行</h3>
             </div>
             <div class="testing-controls">
-              <div class="field">
-                <label>测试集</label>
-                <select id="testingSetSelect"></select>
-              </div>
               <div class="field">
                 <label>模型预设</label>
                 <select id="testingPresetSelect"></select>

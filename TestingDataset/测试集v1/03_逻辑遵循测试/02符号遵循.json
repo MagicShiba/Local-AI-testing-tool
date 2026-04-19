@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "title": "符号遵循测试。!@!",
+  "score": 2,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "记得手工扣分！",
+  "expectedAnswer": "B",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "请注意，现在你每句话末尾都需要用 `!@!` 来隔开。\n请用三句话解释什么是量子纠缠，将这三句话分别翻译成英语和日语，最后将翻译结果整理成以下格式输出：\n原文：xxx\n英语：xxx\n日语：xxx"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "将所有原文合并起来，去掉其他语言"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "每一种语言取一句，组合起来"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "你觉得你做的如何？"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "你认为你表现如何？请诚实回答是否遵循了要求？\n你只需要输出选项，不需要添加`!@!`，后面交由程序判定。\nA : 没有\nB : 完全遵循\nC : 部分遵循"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-18T07:32:32.648Z",
+    "updatedAt": "2026-04-19T03:32:47.877Z",
+    "filename": "02符号遵循.json"
+  }
+}

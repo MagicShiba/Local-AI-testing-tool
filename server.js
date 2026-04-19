@@ -6,7 +6,7 @@ const { URL } = require("url");
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
-const DATASET_ROOT = path.join(ROOT, "测试数据集");
+const DATASET_ROOT = path.join(ROOT, "TestingDataset");
 const APP_DATA_DIR = path.join(ROOT, "app-data");
 const SETTINGS_FILE = path.join(APP_DATA_DIR, "settings.json");
 const RESULTS_DIR = path.join(APP_DATA_DIR, "results");
@@ -16,6 +16,8 @@ const DEBUG_TEST_FLOW = false;
 ensureDirSync(DATASET_ROOT);
 ensureDirSync(APP_DATA_DIR);
 ensureDirSync(RESULTS_DIR);
+const NOTES_DIR = path.join(APP_DATA_DIR, "note");
+ensureDirSync(NOTES_DIR);
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -225,6 +227,55 @@ async function handleApi(req, res, url) {
     const payload = { ...body, id, createdAt: body.createdAt || new Date().toISOString() };
     await fsp.writeFile(path.join(RESULTS_DIR, `${id}.json`), JSON.stringify(payload, null, 2), "utf8");
     return respondJson(res, 200, { ok: true, id });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/notes") {
+    const files = await fsp.readdir(NOTES_DIR, { withFileTypes: true });
+    const list = [];
+    const seen = new Set();
+    for (const entry of files) {
+      if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+      const id = entry.name.replace(/\.json$/i, "");
+      if (seen.has(id)) continue;
+      seen.add(id);
+      try {
+        const content = await fsp.readFile(path.join(NOTES_DIR, entry.name), "utf8");
+        const data = JSON.parse(content);
+        list.push({ id, title: data.title || "", content: data.content || "", createdAt: data.createdAt || "", updatedAt: data.updatedAt || "" });
+      } catch {
+        list.push({ id, title: id, content: "", createdAt: "", updatedAt: "" });
+      }
+    }
+    list.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+    return respondJson(res, 200, list);
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/note") {
+    const id = url.searchParams.get("id");
+    if (!id) return respondJson(res, 400, { error: "笔记ID不能为空" });
+    const target = path.join(NOTES_DIR, `${id}.json`);
+    if (!(await exists(target))) return respondJson(res, 404, { error: "笔记文件不存在" });
+    const data = await readJsonFile(target, null);
+    return respondJson(res, 200, data);
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/note") {
+    const body = await readJsonBody(req);
+    const id = body.id || createId();
+    const payload = { id, title: body.title || "", content: body.content || "", createdAt: body.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
+    await fsp.writeFile(path.join(NOTES_DIR, `${id}.json`), JSON.stringify(payload, null, 2), "utf8");
+    return respondJson(res, 200, { ok: true, id });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/note-delete") {
+    const body = await readJsonBody(req);
+    const id = body.id;
+    if (!id) return respondJson(res, 400, { error: "笔记ID不能为空" });
+    const target = path.join(NOTES_DIR, `${id}.json`);
+    if (await exists(target)) {
+      await fsp.unlink(target);
+    }
+    return respondJson(res, 200, { ok: true });
   }
 
   if (req.method === "POST" && url.pathname === "/api/run-test") {

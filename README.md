@@ -28,13 +28,13 @@ node server.js
 
 ## 数据目录
 
-- 题库：`测试数据集`
+- 题库：`TestingDataset`
 - 设置与结果：`app-data`
 
 题目示例路径：
 
 ```text
-测试数据集\测试集v1\01_基础逻辑测试\问题1.json
+TestingDataset\测试集v1\01_基础逻辑测试\问题1.json
 ```
 
 ## 题目结构
