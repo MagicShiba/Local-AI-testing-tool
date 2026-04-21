@@ -214,16 +214,30 @@ async function handleApi(req, res, url) {
     for (const entry of files) {
       if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
       const data = await readJsonFile(path.join(RESULTS_DIR, entry.name), null);
-      if (data) list.push({ id: data.id, name: data.name, createdAt: data.createdAt, model: data.model, dataset: data.dataset });
+      if (data) {
+        const fallbackId = entry.name.replace(/\.json$/i, "");
+        list.push({ id: data.id || fallbackId, name: data.name || fallbackId, createdAt: data.createdAt, model: data.model, dataset: data.dataset });
+      }
     }
-    list.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    list.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
     return respondJson(res, 200, list);
   }
 
   if (req.method === "GET" && url.pathname === "/api/result") {
     const id = sanitizeSimpleName(url.searchParams.get("id"));
     if (!id) return respondJson(res, 400, { error: "结果ID不能为空" });
-    const data = await readJsonFile(path.join(RESULTS_DIR, `${id}.json`), null);
+    let data = await readJsonFile(path.join(RESULTS_DIR, `${id}.json`), null);
+    if (!data) {
+      const files = await fsp.readdir(RESULTS_DIR, { withFileTypes: true });
+      for (const entry of files) {
+        if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+        const candidate = await readJsonFile(path.join(RESULTS_DIR, entry.name), null);
+        if (candidate?.id === id) {
+          data = candidate;
+          break;
+        }
+      }
+    }
     if (!data) return respondJson(res, 404, { error: "结果不存在" });
     return respondJson(res, 200, data);
   }
@@ -573,6 +587,14 @@ function cleanTranscriptForSave(transcript, conversationRounds) {
   const result = [];
   const assistantEntries = transcript.filter((e) => e.role === "assistant");
   const lastAssistantIndex = assistantEntries.length - 1;
+  const aggregatedUsage = assistantEntries.reduce((acc, entry) => {
+    const usage = entry.response?.usage || entry.meta?.usage;
+    if (!usage) return acc;
+    acc.prompt_tokens += Number(usage.prompt_tokens || 0);
+    acc.completion_tokens += Number(usage.completion_tokens || 0);
+    acc.total_tokens += Number(usage.total_tokens || 0);
+    return acc;
+  }, { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 });
 
   for (const entry of transcript) {
     if (entry.role === "system") {
@@ -606,13 +628,13 @@ function cleanTranscriptForSave(transcript, conversationRounds) {
         _duration: entry._duration,
       };
       if (isLastAssistant && entry.response) {
-        cleaned.meta = buildAssistantMeta(entry.response);
+        cleaned.meta = buildAssistantMeta(entry.response, aggregatedUsage);
       }
       if (isLastAssistant && entry.request) {
         cleaned.request = cleanRequestMessagesForSave(entry.request, conversationRounds);
       }
       if (isLastAssistant && entry.response) {
-        cleaned.response = entry.response;
+        cleaned.response = mergeUsageIntoResponse(entry.response, aggregatedUsage);
       }
       if (isLastAssistant) {
         cleaned.answer = entry.content;
@@ -623,7 +645,7 @@ function cleanTranscriptForSave(transcript, conversationRounds) {
   return result;
 }
 
-function buildAssistantMeta(response) {
+function buildAssistantMeta(response, usageOverride = null) {
   const choice = response?.choices?.[0] || {};
   const meta = {
     id: response?.id || "",
@@ -631,13 +653,31 @@ function buildAssistantMeta(response) {
     created: response?.created || null,
     model: response?.model || "",
     finish_reason: choice?.finish_reason || "",
-    usage: response?.usage || null,
+    usage: usageOverride ? {
+      ...(response?.usage || {}),
+      prompt_tokens: usageOverride.prompt_tokens,
+      completion_tokens: usageOverride.completion_tokens,
+      total_tokens: usageOverride.total_tokens,
+    } : (response?.usage || null),
   };
   const hasReasoningContent = choice?.message?.reasoning_content != null;
   if (hasReasoningContent) {
     meta.reasoning_content = choice.message.reasoning_content;
   }
   return meta;
+}
+
+function mergeUsageIntoResponse(response, usageOverride) {
+  if (!usageOverride || !response) return response;
+  return {
+    ...response,
+    usage: {
+      ...(response.usage || {}),
+      prompt_tokens: usageOverride.prompt_tokens,
+      completion_tokens: usageOverride.completion_tokens,
+      total_tokens: usageOverride.total_tokens,
+    },
+  };
 }
 
 function cleanRequestMessagesForSave(request, conversationRounds) {
@@ -790,18 +830,92 @@ function evaluateAnswer(question, answer) {
   const maxScore = Number(question.score || 0);
   let passed = false;
   let error = "";
+  let earned = 0;
+  let statusHtml = "";
   const expected = String(question.expectedAnswer || "").trim();
   const hasExpectedAnswer = expected.length > 0;
   const cleanedAnswer = String(answer || "").trim();
   try {
     const fn = new Function(`return (${question.checker || defaultQuestion().checker});`)();
-    if (hasExpectedAnswer) {
-      passed = Boolean(fn(cleanedAnswer, expected, { question }));
-    }
+    const checkerResult = fn(cleanedAnswer, expected, {
+      question,
+      answer: cleanedAnswer,
+      expectedAnswer: expected,
+      maxScore,
+    });
+    const normalized = normalizeCheckerResult(checkerResult, maxScore, hasExpectedAnswer);
+    passed = normalized.passed;
+    earned = normalized.earned;
+    statusHtml = normalized.statusHtml;
   } catch (err) {
     error = err.message || String(err);
   }
-  return { passed, error, earned: passed ? maxScore : 0, total: maxScore, hasExpectedAnswer };
+  return { passed, error, earned, total: maxScore, hasExpectedAnswer, statusHtml };
+}
+
+function normalizeCheckerResult(checkerResult, maxScore, hasExpectedAnswer) {
+  let earned = 0;
+  let passed = false;
+  let statusHtml = "";
+
+  if (typeof checkerResult === "boolean") {
+    passed = checkerResult;
+    earned = checkerResult ? maxScore : 0;
+    return { passed, earned, statusHtml };
+  }
+
+  if (typeof checkerResult === "number" && Number.isFinite(checkerResult)) {
+    earned = normalizePercentScore(checkerResult, maxScore);
+    passed = earned >= maxScore;
+    return { passed, earned, statusHtml };
+  }
+
+  if (checkerResult && typeof checkerResult === "object") {
+    if ("statusHtml" in checkerResult) {
+      statusHtml = String(checkerResult.statusHtml || "");
+    } else if ("html" in checkerResult) {
+      statusHtml = String(checkerResult.html || "");
+    }
+
+    if ("earned" in checkerResult && Number.isFinite(Number(checkerResult.earned))) {
+      earned = clampScore(Number(checkerResult.earned), maxScore);
+    } else if ("percent" in checkerResult && Number.isFinite(Number(checkerResult.percent))) {
+      earned = normalizePercentScore(Number(checkerResult.percent), maxScore);
+    } else if ("ratio" in checkerResult && Number.isFinite(Number(checkerResult.ratio))) {
+      earned = normalizePercentScore(Number(checkerResult.ratio), maxScore);
+    } else if ("scoreRatio" in checkerResult && Number.isFinite(Number(checkerResult.scoreRatio))) {
+      earned = normalizePercentScore(Number(checkerResult.scoreRatio), maxScore);
+    } else if ("passed" in checkerResult) {
+      earned = checkerResult.passed ? maxScore : 0;
+    } else if ("ok" in checkerResult) {
+      earned = checkerResult.ok ? maxScore : 0;
+    } else if (hasExpectedAnswer) {
+      earned = 0;
+    }
+
+    if ("passed" in checkerResult) {
+      passed = Boolean(checkerResult.passed);
+    } else if ("ok" in checkerResult) {
+      passed = Boolean(checkerResult.ok);
+    } else {
+      passed = earned >= maxScore;
+    }
+    return { passed, earned, statusHtml };
+  }
+
+  if (hasExpectedAnswer) {
+    passed = Boolean(checkerResult);
+    earned = passed ? maxScore : 0;
+  }
+  return { passed, earned, statusHtml };
+}
+
+function normalizePercentScore(value, maxScore) {
+  return clampScore(maxScore * Number(value || 0), maxScore);
+}
+
+function clampScore(value, maxScore) {
+  return Math.max(0, Math.min(maxScore, Number(value || 0)));
 }
 
 async function readDatasetTree() {

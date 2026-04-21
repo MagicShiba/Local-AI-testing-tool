@@ -4,7 +4,7 @@
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
   "note": "",
-  "expectedAnswer": "A",
+  "expectedAnswer": "C",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
     {
@@ -28,7 +28,7 @@
         "parts": [
           {
             "type": "text",
-            "text": "上面是一道测试题，后面将交给程序自动判定结果。\n下面是选项，你只需要输出一个最符合你上面回答的选项即可。\nA: 不合理\nB: 合理\nC: 无法确定，视情况而定\n"
+            "text": "上面是一道测试题，后面将交给程序自动判定结果。\n下面是选项，你只需要输出一个最符合你上面回答的选项即可。\nA : 高三压力更大，不适合安排打扫卫生，不合理。\nB : 基本合理，按年级轮流负责，避免了某一届学生长期“包揽”劳动。\nC : 不合理，没有做到按年级轮流负责，实际上是一届学生长期“包揽”劳动。\nD : 无法评价，视情况而定。\n"
           }
         ]
       },
@@ -42,7 +42,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-16T14:58:09.326Z",
-    "updatedAt": "2026-04-17T12:08:44.108Z",
+    "updatedAt": "2026-04-20T10:17:30.767Z",
     "filename": "13学校大扫除.json"
   }
 }

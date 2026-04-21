@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "title": "潦草手写提取文字",
+  "score": 2,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "\n没标准答案，一些易错点\nφ 不要提取成了 中\n13 三通 ？？我也不知道是什么\n14 10KP\n18 40x32\n21 导轨\n\n22 300x400\n26 是否说明了划掉？是否保留了正确项？",
+  "expectedAnswer": "",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "提取图中文字"
+          },
+          {
+            "type": "image",
+            "assetPath": "测试集v1/assets/ocr-手写.jpg"
+          }
+        ]
+      },
+      "assistant": []
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-20T08:59:50.977Z",
+    "updatedAt": "2026-04-21T17:02:17.446Z",
+    "filename": "06提取图中文字.json"
+  }
+}

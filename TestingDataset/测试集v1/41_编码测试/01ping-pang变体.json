@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "title": "pong 变体",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "编写一个复古的类乒乓球游戏(街机游戏pong),将原本表示玩家的横线绘制成一个小人，小人拿着一个球拍。\n规则从原本的球碰撞横线反弹，改为在球接触球拍时玩家点击鼠标左键才进行反弹，需要制作出挥动球拍动作。\n并且在球运动时在后面绘制一条彩虹轨迹。\n\n使用单个html完成。"
+          }
+        ]
+      },
+      "assistant": []
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-21T07:12:27.353Z",
+    "updatedAt": "2026-04-21T16:48:14.618Z",
+    "filename": "01ping-pang变体.json"
+  }
+}

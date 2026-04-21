@@ -16,11 +16,14 @@ const state = {
   currentNote: null,
   noteViewMode: "markdown",
   noteSortBy: "name",
+  pendingTestingFocusPath: "",
 };
 
 const DEBUG_TEST_FLOW = false;
 const LAST_PAGE_KEY = "lastActivePage";
 const LAST_TESTING_SET_KEY = "lastTestingSet";
+const LAST_NOTE_SORT_KEY = "lastNoteSortBy";
+const PAGE_SCROLL_KEY_PREFIX = "pageScroll:";
 
 const els = {
   tabs: [...document.querySelectorAll(".tab")],
@@ -69,15 +72,23 @@ const els = {
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
+  document.body.classList.add("app-loading");
   bindEvents();
+  const initialPage = normalizePage(localStorage.getItem(LAST_PAGE_KEY));
+  const savedSet = localStorage.getItem(LAST_TESTING_SET_KEY);
+  if (savedSet) {
+    state.testingSet = savedSet;
+  }
+  const savedNoteSortBy = localStorage.getItem(LAST_NOTE_SORT_KEY);
+  if (savedNoteSortBy === "name" || savedNoteSortBy === "time") {
+    state.noteSortBy = savedNoteSortBy;
+  }
   await Promise.all([loadTree(), loadSettings(), loadResults(), loadNotes()]);
-  syncTestingSelectors();
+  await syncTestingSelectors();
   renderEditor();
   renderNotes();
-  const initialPage = localStorage.getItem(LAST_PAGE_KEY);
-  if (initialPage === "testing" || initialPage === "settings" || initialPage === "editor" || initialPage === "notes") {
-    switchPage(initialPage, { skipUnsavedCheck: true });
-  }
+  switchPage(initialPage, { skipUnsavedCheck: true, skipScrollSave: true, immediateScrollRestore: true });
+  document.body.classList.remove("app-loading");
 }
 
 function bindEvents() {
@@ -127,6 +138,7 @@ function bindEvents() {
   els.scrollTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
   els.stopTestBtn.addEventListener("click", stopAllTests);
   document.addEventListener("click", handleDocumentClick);
+  document.addEventListener("click", handleCheckerActionClick);
   els.testingPresetSelect.addEventListener("change", () => {
     state.testingPresetId = els.testingPresetSelect.value;
   });
@@ -162,9 +174,16 @@ function bindEvents() {
 }
 
 function switchPage(page, options = {}) {
+  page = normalizePage(page);
   const skipUnsavedCheck = Boolean(options.skipUnsavedCheck);
+  const skipScrollSave = Boolean(options.skipScrollSave);
+  const immediateScrollRestore = Boolean(options.immediateScrollRestore);
   if (!skipUnsavedCheck && state.hasUnsavedChanges && !confirm("当前题目有未保存的更改，确定要离开吗？")) {
     return;
+  }
+  const currentPage = getActivePage();
+  if (!skipScrollSave && currentPage) {
+    savePageScroll(currentPage);
   }
   els.tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.page === page));
   els.pages.forEach((section) => section.classList.toggle("active", section.id === `page-${page}`));
@@ -175,6 +194,7 @@ function switchPage(page, options = {}) {
   } else if (page === "testing") {
     renderTestingList();
   }
+  restorePageScroll(page, immediateScrollRestore);
 }
 
 function updateEditorSetSelectVisibility(page) {
@@ -482,16 +502,19 @@ async function quickRunCurrentQuestion() {
   if (!state.selectedQuestionPath) return;
   await saveQuestion();
   await loadTree();
-  await renderTestingList();
-  switchPage("testing");
   state.testingSet = getCurrentSetName();
+  localStorage.setItem(LAST_TESTING_SET_KEY, state.testingSet);
+  state.pendingTestingFocusPath = state.selectedQuestionPath;
+  state.testingSelectedPath = state.selectedQuestionPath;
   await syncTestingSelectors();
+  switchPage("testing", { immediateScrollRestore: true });
   const item = state.testingItems.find((entry) => entry.path === state.selectedQuestionPath);
   if (item) {
     item.result = null;
     item.running = false;
+    item.open = true;
     setTestingSelected(item.path);
-    scrollToTestingCard(item.path);
+    await focusTestingCard(item.path);
     await runSingleTest(item.path);
   }
 }
@@ -571,7 +594,7 @@ async function saveSettings() {
 
 async function syncTestingSelectors() {
   const savedSet = localStorage.getItem(LAST_TESTING_SET_KEY);
-  state.testingSet = savedSet || state.tree.sets[0]?.name || "";
+  state.testingSet = state.testingSet || savedSet || state.tree.sets[0]?.name || "";
   els.testingSetSelect.innerHTML = "";
   state.tree.sets.forEach((set) => {
     const option = document.createElement("option");
@@ -582,6 +605,10 @@ async function syncTestingSelectors() {
   });
   if (!state.testingSet && state.tree.sets[0]) {
     state.testingSet = state.tree.sets[0].name;
+    els.testingSetSelect.value = state.testingSet;
+  }
+  if (!state.tree.sets.some((set) => set.name === state.testingSet)) {
+    state.testingSet = state.tree.sets[0]?.name || "";
     els.testingSetSelect.value = state.testingSet;
   }
   if (!state.testingPresetId) state.testingPresetId = state.settings.activePresetId || state.settings.presets[0]?.id || "";
@@ -597,15 +624,21 @@ async function renderTestingList() {
   const oldMap = new Map(state.testingItems.map((item) => [item.path, item]));
   state.testingItems = items.map((item) => {
     const old = oldMap.get(item.path);
-    return {
-      ...item,
-      result: old?.result,
-      manualScore: old?.manualScore,
-      open: old?.open,
-      running: old?.running,
-      stopRequested: old?.stopRequested || false,
-      abortController: old?.abortController || null,
-    };
+    if (old) {
+      Object.assign(old, {
+        ...item,
+        result: old.result,
+        manualScore: old.manualScore,
+        open: old.open,
+        running: old.running,
+        stopRequested: old.stopRequested || false,
+        abortController: old.abortController || null,
+        question: old.question || null,
+        followUpText: old.followUpText || "",
+      });
+      return old;
+    }
+    return item;
   });
   await refreshTestingView();
   renderTestingTree();
@@ -630,7 +663,7 @@ async function createTestingCard(item) {
   const summary = document.createElement("summary");
   const runStat = getRunStat(item.result);
   const fullScore = item.score;
-  summary.innerHTML = `<div class="test-header"><div><div class="test-title">${escapeHtml(item.title)}</div><div class="test-meta">${escapeHtml(item.folderName)} · ${escapeHtml(item.fileName)}</div></div><div class="score-badge">${Number(item.manualScore ?? item.result?.score?.earned ?? 0)} / ${item.score}</div><div class="header-score-input"><div class="header-score-label">手动分数</div><div class="score-input-row"><input class="manualScoreInput" type="number" min="0" step="0.5" /><div class="quick-score-btns"><button type="button" class="quick-score-btn" data-score="${fullScore}">对</button><button type="button" class="quick-score-btn" data-score="0">错</button><button type="button" class="quick-score-btn" data-score="${fullScore / 2}">半</button></div></div></div><div class="run-stats">${runStat}</div></div>`;
+  summary.innerHTML = `<div class="test-header"><div class="test-title">${escapeHtml(item.title)}</div><div class="score-badge">${Number(item.manualScore ?? item.result?.score?.earned ?? 0)} / ${item.score}</div><div class="header-score-input"><div class="header-score-label">手动分数</div><div class="score-input-row"><input class="manualScoreInput" type="number" min="0" step="0.5" /><div class="quick-score-btns"><button type="button" class="quick-score-btn" data-score="${fullScore}">对</button><button type="button" class="quick-score-btn" data-score="0">错</button><button type="button" class="quick-score-btn" data-score="${fullScore / 2}">半</button></div></div></div><div class="run-stats">${runStat}</div></div>`;
   details.appendChild(summary);
 
   const body = document.createElement("div");
@@ -640,7 +673,7 @@ async function createTestingCard(item) {
   side.className = "test-side";
   const expectedText = questionData?.expectedAnswer?.trim() ? escapeHtml(questionData.expectedAnswer) : "未设置";
   const noteText = questionData?.note?.trim() ? escapeHtml(questionData.note) : "无";
-  side.innerHTML = `<div class="toolbar"><button type="button" class="runOneBtn">${item.running ? "停止本题" : "测试本题"}</button></div><div class="status-line">${item.running ? "正在按轮次自动测试..." : "就绪"}</div><div class="status-extra"><div>预设：${expectedText}</div><div>备注：\n${noteText}</div></div>`;
+  side.innerHTML = `<div class="toolbar"><button type="button" class="runOneBtn">${item.running ? "停止本题" : "测试本题"}</button></div><div class="status-line">${item.running ? "正在按轮次自动测试..." : "就绪"}</div><div class="status-extra">${renderStatusExtra(item, expectedText, noteText)}</div>`;
   const runButton = side.querySelector(".runOneBtn");
   runButton.disabled = false;
   runButton.addEventListener("click", () => {
@@ -1110,6 +1143,7 @@ async function runSingleTest(questionPath, step = null) {
     if (item.abortController === controller) {
       item.abortController = null;
     }
+    item.stopRequested = false;
     item.running = false;
     updateStopButton();
     await refreshTestingView();
@@ -1179,13 +1213,17 @@ async function refreshTestingView() {
   for (const folderName of folderOrder) {
     const folderHeader = document.createElement("div");
     folderHeader.className = "testing-folder-header";
-    folderHeader.innerHTML = `<span class="testing-folder-toggle">▾</span><strong>${escapeHtml(folderName)}</strong><span class="testing-folder-count">(${itemsByFolder[folderName].length}题)</span>`;
+    folderHeader.innerHTML = `<div class="testing-folder-main"><span class="testing-folder-toggle">▾</span><strong>${escapeHtml(folderName)}</strong><span class="testing-folder-count">(${itemsByFolder[folderName].length}题)</span></div><div class="testing-folder-actions"><button type="button" class="run-folder-btn">执行本组</button></div>`;
     folderHeader.addEventListener("click", () => {
       folderHeader.classList.toggle("collapsed");
       const toggle = folderHeader.querySelector(".testing-folder-toggle");
       toggle.textContent = folderHeader.classList.contains("collapsed") ? "▸" : "▾";
       const folderBody = document.querySelector(`.testing-folder-body[data-folder="${cssEscape(folderName)}"]`);
       if (folderBody) folderBody.classList.toggle("hidden", folderHeader.classList.contains("collapsed"));
+    });
+    folderHeader.querySelector(".run-folder-btn").addEventListener("click", async (event) => {
+      event.stopPropagation();
+      await runFolderTests(folderName);
     });
     els.testingList.appendChild(folderHeader);
     
@@ -1205,6 +1243,14 @@ async function refreshTestingView() {
   updateScoreSummary();
   highlightSelectedTestingTree();
   highlightSelectedCard(state.testingSelectedPath);
+  if (state.pendingTestingFocusPath && getActivePage() === "testing") {
+    const targetPath = state.pendingTestingFocusPath;
+    const card = await ensureTestingCardReady(targetPath);
+    if (card) {
+      scrollToTestingCard(targetPath, { behavior: "auto" });
+      state.pendingTestingFocusPath = "";
+    }
+  }
 }
 
 function updateScoreSummary() {
@@ -1236,6 +1282,7 @@ async function saveResult() {
   const itemsToSave = state.testingItems.map((item) => {
     const result = item.result ? { ...item.result } : null;
     if (result && result.transcript) {
+      const aggregatedUsage = aggregateAssistantUsage(result.transcript);
       const assistantEntries = result.transcript.filter(e => e.role === "assistant");
       const lastAssistantIndex = assistantEntries.length - 1;
       result.transcript = result.transcript.map((entry, idx) => {
@@ -1245,8 +1292,24 @@ async function saveResult() {
         if (!isLast) {
           return { ...entry, meta: undefined, request: undefined, response: undefined };
         }
-        return entry;
+        const mergedResponse = entry.response ? mergeUsageIntoUsageCarrier(entry.response, aggregatedUsage) : entry.response;
+        const mergedMeta = entry.meta ? mergeUsageIntoUsageCarrier(entry.meta, aggregatedUsage) : entry.meta;
+        return {
+          ...entry,
+          response: mergedResponse,
+          meta: mergedMeta,
+          stats: {
+            completionTokens: aggregatedUsage.completion_tokens,
+            promptTokens: aggregatedUsage.prompt_tokens,
+            totalTokens: aggregatedUsage.total_tokens,
+          },
+        };
       });
+      result.stats = {
+        completionTokens: aggregatedUsage.completion_tokens,
+        promptTokens: aggregatedUsage.prompt_tokens,
+        totalTokens: aggregatedUsage.total_tokens,
+      };
     }
     return { path: item.path, title: item.title, fileName: item.fileName, score: item.score, manualScore: item.manualScore, followUpText: item.followUpText, result };
   });
@@ -1267,7 +1330,7 @@ async function loadResults() {
   results.forEach((item) => {
     const option = document.createElement("option");
     option.value = item.id;
-    option.textContent = `${item.name} · ${item.createdAt}`;
+    option.textContent = item.name || item.id;
     els.savedResultSelect.appendChild(option);
   });
 }
@@ -1276,17 +1339,29 @@ async function loadSelectedResult() {
   const id = els.savedResultSelect.value;
   if (!id) return;
   state.isLoadingResult = true;
-  const result = await api(`/api/result?id=${encodeURIComponent(id)}`);
-  if (result.dataset) {
-    state.testingSet = result.dataset;
+  try {
+    const result = await api(`/api/result?id=${encodeURIComponent(id)}`);
+    if (result.dataset) {
+      state.testingSet = result.dataset;
+      localStorage.setItem(LAST_TESTING_SET_KEY, state.testingSet);
+      if (els.testingSetSelect) {
+        els.testingSetSelect.value = state.testingSet;
+      }
+      await renderTestingList();
+      renderEditorTree();
+      renderTestingTree();
+    }
+    const map = new Map((result.items || []).map((item) => [item.path, item]));
+    state.testingItems.forEach((item) => {
+      const saved = map.get(item.path);
+      item.result = saved?.result || null;
+      item.manualScore = saved?.manualScore ?? null;
+      item.followUpText = saved?.followUpText || "";
+    });
+    await refreshTestingView();
+  } finally {
+    state.isLoadingResult = false;
   }
-  const map = new Map((result.items || []).map((item) => [item.path, item]));
-  state.testingItems = state.testingItems.map((item) => {
-    const saved = map.get(item.path);
-    return saved ? { ...item, result: saved.result || null, manualScore: saved.manualScore, followUpText: saved.followUpText || "" } : item;
-  });
-  await renderTestingList();
-  state.isLoadingResult = false;
 }
 
 function renderTestingTree() {
@@ -1340,16 +1415,19 @@ function highlightSelectedCard(path) {
 }
 
 //目录中点击题目时测试列表跳转至对应问题
-function scrollToTestingCard(path) {
+function scrollToTestingCard(path, options = {}) {
   const selector = `[data-path="${cssEscape(path)}"]`;
   const card = els.testingList.querySelector(selector);
   if (!card) return;
+  ensureTestingCardExpanded(path, card);
   card.open = true;
   const item = state.testingItems.find((entry) => entry.path === path);
   if (item) item.open = true;
   const topbarHeight = document.querySelector(".topbar")?.offsetHeight || 60;
-  const y = card.getBoundingClientRect().top + window.scrollY - topbarHeight - 30; //粘性标题偏移，防遮挡
-  window.scrollTo({ top: y, behavior: "smooth" });
+  const folderHeaderHeight = card.closest(".testing-folder-body")?.previousElementSibling?.offsetHeight || 0;
+  const summaryHeight = card.querySelector("summary")?.offsetHeight || 0;
+  const y = card.getBoundingClientRect().top + window.scrollY - topbarHeight - folderHeaderHeight - summaryHeight - 12;
+  window.scrollTo({ top: Math.max(0, y), behavior: options.behavior || "smooth" });
 }
 
 function getTestStatusClass(item) {
@@ -1364,18 +1442,30 @@ function getTestStatusClass(item) {
   }
   const earned = score?.earned ?? 0;
   if (!score?.hasExpectedAnswer) return "status-unscored";
-  return score.passed ? "status-correct" : "status-wrong";
+  const total = Number(score?.total ?? item.score ?? 0);
+  if (earned >= total) return "status-correct";
+  if (earned <= 0) return "status-wrong";
+  return "status-partial";
 }
 
 function getRunStat(result) {
   if (!result?.transcript?.length) return "";
   let totalCompletionTokens = 0;
+  let totalPromptTokens = 0;
   let totalDuration = 0;
+  const totals = result.stats || result.metaTotals || null;
+  if (totals) {
+    totalCompletionTokens = Number(totals.completionTokens || 0);
+    totalPromptTokens = Number(totals.promptTokens || 0);
+  }
   result.transcript.forEach((round) => {
     if (round.role === "assistant") {
       const usage = round.response?.usage || round.meta?.usage;
       if (usage) {
-        totalCompletionTokens += usage.completion_tokens || 0;
+        if (!totals) {
+          totalCompletionTokens += usage.completion_tokens || 0;
+          totalPromptTokens += usage.prompt_tokens || 0;
+        }
       }
     }
     if (round._duration) {
@@ -1392,6 +1482,159 @@ function getRunStat(result) {
     stats.push(`速度: ${ts} t/s`);
   }
   return stats.join("<br>");
+}
+
+function aggregateAssistantUsage(transcript = []) {
+  return transcript.reduce((acc, entry) => {
+    if (entry.role !== "assistant") return acc;
+    const usage = entry.response?.usage || entry.meta?.usage;
+    if (!usage) return acc;
+    acc.prompt_tokens += Number(usage.prompt_tokens || 0);
+    acc.completion_tokens += Number(usage.completion_tokens || 0);
+    acc.total_tokens += Number(usage.total_tokens || 0);
+    return acc;
+  }, { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 });
+}
+
+function mergeUsageIntoUsageCarrier(target, usage) {
+  if (!target || !usage) return target;
+  return {
+    ...target,
+    usage: {
+      ...(target.usage || {}),
+      prompt_tokens: usage.prompt_tokens,
+      completion_tokens: usage.completion_tokens,
+      total_tokens: usage.total_tokens,
+    },
+  };
+}
+
+function renderStatusExtra(item, expectedText, noteText) {
+  const injectedHtml = item.result?.score?.statusHtml || "";
+  return `${injectedHtml}<div>预设：${expectedText}</div><div>备注：\n${noteText}</div>`;
+}
+
+async function runFolderTests(folderName) {
+  const items = state.testingItems.filter((item) => item.folderName === folderName);
+  if (!items.length) return;
+  state.isBatchRunning = true;
+  state.stopAllRequested = false;
+  state.testingItems.forEach((item) => {
+    item.stopRequested = false;
+  });
+  updateStopButton();
+  try {
+    for (const item of items) {
+      if (state.stopAllRequested) break;
+      await runSingleTest(item.path, null);
+    }
+  } finally {
+    state.isBatchRunning = false;
+    state.stopAllRequested = false;
+    updateStopButton();
+  }
+}
+
+function normalizePage(page) {
+  return ["editor", "testing", "notes", "settings"].includes(page) ? page : "editor";
+}
+
+function getActivePage() {
+  return els.tabs.find((tab) => tab.classList.contains("active"))?.dataset.page || normalizePage(localStorage.getItem(LAST_PAGE_KEY));
+}
+
+function getPageScrollKey(page) {
+  return `${PAGE_SCROLL_KEY_PREFIX}${page}`;
+}
+
+function savePageScroll(page) {
+  localStorage.setItem(getPageScrollKey(page), String(Math.max(0, Math.round(window.scrollY))));
+}
+
+function restorePageScroll(page, immediate = false) {
+  const raw = localStorage.getItem(getPageScrollKey(page));
+  const top = Number(raw || 0);
+  const apply = () => window.scrollTo({ top: Number.isFinite(top) ? top : 0, behavior: "auto" });
+  if (immediate) {
+    apply();
+    return;
+  }
+  requestAnimationFrame(() => requestAnimationFrame(apply));
+}
+
+async function ensureTestingCardReady(path) {
+  for (let i = 0; i < 3; i++) {
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    const card = els.testingList.querySelector(`[data-path="${cssEscape(path)}"]`);
+    if (card) {
+      ensureTestingCardExpanded(path, card);
+      return card;
+    }
+  }
+  return null;
+}
+
+async function focusTestingCard(path) {
+  const card = await ensureTestingCardReady(path);
+  if (!card) return null;
+  scrollToTestingCard(path, { behavior: "auto" });
+  return card;
+}
+
+function ensureTestingCardExpanded(path, card = null) {
+  const targetCard = card || els.testingList.querySelector(`[data-path="${cssEscape(path)}"]`);
+  if (!targetCard) return null;
+  const folderBody = targetCard.closest(".testing-folder-body");
+  if (folderBody?.classList.contains("hidden")) {
+    folderBody.classList.remove("hidden");
+    const folderHeader = folderBody.previousElementSibling;
+    if (folderHeader?.classList.contains("testing-folder-header")) {
+      folderHeader.classList.remove("collapsed");
+      const toggle = folderHeader.querySelector(".testing-folder-toggle");
+      if (toggle) toggle.textContent = "▾";
+    }
+  }
+  targetCard.open = true;
+  const item = state.testingItems.find((entry) => entry.path === path);
+  if (item) item.open = true;
+  return targetCard;
+}
+
+async function handleCheckerActionClick(event) {
+  const btn = event.target.closest("[data-checker-action]");
+  if (!btn) return;
+  event.preventDefault();
+  const action = btn.dataset.checkerAction || "";
+  let payload = btn.dataset.checkerPayload || "";
+  try {
+    payload = payload ? JSON.parse(payload) : payload;
+  } catch {
+    payload = btn.dataset.checkerPayload || "";
+  }
+  if (action === "alert") {
+    alert(typeof payload === "string" ? payload : JSON.stringify(payload, null, 2));
+    return;
+  }
+  if (action === "copy-text") {
+    const text = typeof payload === "string" ? payload : JSON.stringify(payload);
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  if (action === "set-follow-up") {
+    const card = btn.closest(".test-card");
+    const path = card?.dataset.path;
+    const item = state.testingItems.find((entry) => entry.path === path);
+    if (!item) return;
+    item.followUpText = typeof payload === "string" ? payload : String(payload?.text || "");
+    await refreshTestingView();
+    const refreshedCard = await ensureTestingCardReady(path);
+    const input = refreshedCard?.querySelector(".followUpInput");
+    if (input) {
+      input.value = item.followUpText;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    }
+  }
 }
 
 function getActivePreset() {
@@ -1447,6 +1690,8 @@ async function loadNotes() {
 function renderNotes() {
   if (!els.notesList) return;
   els.notesList.innerHTML = "";
+  document.getElementById("sortByNameBtn")?.classList.toggle("active", state.noteSortBy === "name");
+  document.getElementById("sortByTimeBtn")?.classList.toggle("active", state.noteSortBy === "time");
   const sortedNotes = [...state.notes].sort((a, b) => {
     if (state.noteSortBy === "time") {
       return String(b.updatedAt).localeCompare(String(a.updatedAt));
@@ -1466,8 +1711,7 @@ function renderNotes() {
 
 function setNoteSortBy(sortBy) {
   state.noteSortBy = sortBy;
-  document.getElementById("sortByNameBtn").classList.toggle("active", sortBy === "name");
-  document.getElementById("sortByTimeBtn").classList.toggle("active", sortBy === "time");
+  localStorage.setItem(LAST_NOTE_SORT_KEY, sortBy);
   renderNotes();
 }
 

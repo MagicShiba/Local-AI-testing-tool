@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "title": "物体检查和标注方框",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "由于Qwen和Gemma都很容易直接给出下面这种过拟合结果，\n而且回答+标注混杂不好处理，直接输出容易出错。\n因此给了两轮机会。\n[\n  {\"box_2d\": [244, 256, 948, 405], \"label\": \"person\"},\n  {\"box_2d\": [357, 606, 655, 803], \"label\": \"cat\"}\n]",
+  "expectedAnswer": "看情况给吧",
+  "checker": "function checkAnswer(answer, correctAnswer, ctx) {\n  const result = answer.replace(/```json|```/g, '');\n  //背景\n  const image = \"/dataset-file/测试集v1/assets/imgbox1.jpg\";\n  //插入html\n  const getVisualizerHtml = () => `\n  <!DOCTYPE html><html><head>\n  <meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <style>\n    body { margin: 0; padding: 20px; display: flex; justify-content: center; background: #f4f4f4; min-height: 100vh; box-sizing: border-box; }\n    .container { position: relative; display: inline-block; line-height: 0; }\n    img { max-width: 100%; max-height: calc(100vh - 40px); display: block; object-fit: contain; }\n    .box { position: absolute; border: 2px solid; pointer-events: none; box-sizing: border-box; }\n    .label { position: absolute; top: -20px; left: -2px; color: white; font-size: 12px; padding:10px; font-weight: bold;}\n  </style></head><body>\n  <div class=\"container\" id=\"c\"><img src=\"${image}\" id=\"i\"></div>\n  <script>\n  (function() {\n    const data = ${result};\n    const container = document.getElementById('c');\n    const getColor = (idx) => \\`hsl(\\${idx * 137.5 % 360}, 80%, 50%)\\`;\n    data.forEach((item, idx) => {\n      const color = getColor(idx);\n      for (let name in item) {\n        const [x1, y1, x2, y2] = item[name];\n        const box = document.createElement('div');\n        box.className = 'box';\n        // 直接使用百分比 (%)，实现真正的自适应缩放\n        Object.assign(box.style, {\n          left: (x1 * 100) + '%',\n          top: (y1 * 100) + '%',\n          width: ((x2 - x1) * 100) + '%',\n          height: ((y2 - y1) * 100) + '%',\n          borderColor: color\n        });\n        const lbl = document.createElement('div');\n        lbl.className = 'label';\n        lbl.innerText = name;\n        lbl.style.backgroundColor = color;\n        box.appendChild(lbl);\n        container.appendChild(box);\n      }\n    });\n  })();\n  </script></body></html>`;\n\n  const encodedHtml = btoa(encodeURIComponent(getVisualizerHtml()));\n  \n  return {percent:0.5,\n  html: `<div><button type=\"button\" \n  onclick=\"const w=window.open(); w.document.write(decodeURIComponent(atob('${encodedHtml}'))); w.document.close();\"\n  style=\"cursor:pointer;\">\n  查看可视化结果\n  </button></div>`\n  };\n}\n",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "详细识别图中物体。\n并给出相应的坐标。"
+          },
+          {
+            "type": "image",
+            "assetPath": "测试集v1/assets/imgbox1.jpg"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "按下面格式输出信息，使用[x1,y1,x2,y2]坐标格式，必须使用归一化坐标。\n不要添加其它额外信息。\n[\n{\"物体名1\": [0.1,0.2,0.15,0.4]},\n{\"物体名2\": [0.2,0.3,0.15,0.3]}\n]"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-21T17:12:43.144Z",
+    "updatedAt": "2026-04-21T20:46:59.862Z",
+    "filename": "00标注方框测试.json"
+  }
+}

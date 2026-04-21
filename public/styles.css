@@ -13,6 +13,7 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); }
+body.app-loading main { visibility: hidden; }
 button, input, textarea, select { font: inherit; }
 button { border: 1px solid var(--line-strong); background: #fff; color: var(--text); border-radius: 8px; padding: 2px 5px; cursor: pointer; }
 button:hover { border-color: var(--primary); color: var(--primary); }
@@ -115,6 +116,10 @@ main { padding: 2px; }
   position: sticky;
   top: 65px;
   z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 .testing-folder-header:first-child {
   margin-top: 0;
@@ -127,6 +132,20 @@ main { padding: 2px; }
   width: 12px;
   display: inline-block;
   margin-right: 6px;
+}
+.testing-folder-main,
+.testing-folder-actions {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.testing-folder-main {
+  flex: 1;
+}
+.run-folder-btn {
+  padding: 2px 8px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 .testing-folder-count {
   margin-left: 8px;
@@ -152,9 +171,29 @@ main { padding: 2px; }
 .message-user { max-width: 78%; margin-left: auto; background: #eff6ff;border-right: 2px solid #0077ff; }
 .message-assistant { max-width: 95%; background: #f0fdf4; border-left: 2px solid #00aa55;}
 .message-assistant-wrap { margin-bottom: 3px; }
-.test-card summary { cursor: pointer; list-style: none; }
+.test-card summary {
+  cursor: pointer;
+  list-style: none;
+  position: sticky;
+  top: 100px;
+  z-index: 4;
+  background: var(--panel);
+  display: block;
+}
 .test-card summary::-webkit-details-marker { display: none; }
-.test-header { display: grid; grid-template-columns: minmax(0, 1fr) 55px auto 85px; align-items: center; gap: 4px; }
+.test-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 55px auto 85px;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  padding: 3px 0;
+}
+.test-card.status-correct > summary { background: #ecfdf3; }
+.test-card.status-wrong > summary { background: #fef2f2; }
+.test-card.status-unanswered > summary { background: #f5f5f5; }
+.test-card.status-unscored > summary { background: #f3f4f6; }
+.test-card.status-partial > summary { background: #fefce8; }
 .test-title { font-weight: 600; }
 .test-meta, .muted { color: var(--muted); font-size: 13px; }
 .score-badge, .score-summary { font-weight: 600; color: var(--primary); }

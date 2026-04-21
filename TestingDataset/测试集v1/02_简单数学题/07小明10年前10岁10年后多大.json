@@ -3,6 +3,7 @@
   "title": "小明10年前10岁，10年后多大？",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
   "expectedAnswer": "30",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
@@ -11,7 +12,7 @@
         "parts": [
           {
             "type": "text",
-            "text": "小明10年前10岁，10年后多大？"
+            "text": "小明十年前10岁，10年后多大？"
           }
         ]
       },
@@ -41,7 +42,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-14T17:12:54.271Z",
-    "updatedAt": "2026-04-14T17:17:08.112Z",
+    "updatedAt": "2026-04-21T17:26:27.600Z",
     "filename": "07小明10年前10岁10年后多大.json"
   }
 }
