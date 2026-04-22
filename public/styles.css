@@ -121,10 +121,12 @@ main { padding: 2px; }
   justify-content: space-between;
   gap: 8px;
 }
-.testing-folder-header:first-child {
-  margin-top: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 55px auto 85px;
+.testing-folder-header{
+    display: grid;
+    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) 100px 90px 85px;
+    gap: 4px;
+    padding: 0px;
 }
 .testing-folder-header.collapsed {
   border-radius: 4px;
@@ -143,6 +145,11 @@ main { padding: 2px; }
 }
 .testing-folder-main {
   flex: 1;
+}
+.testing-folder-score {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
 }
 .run-folder-btn {
   padding: 2px 8px;
@@ -185,7 +192,7 @@ main { padding: 2px; }
 .test-card summary::-webkit-details-marker { display: none; }
 .test-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 55px auto 85px;
+  grid-template-columns: minmax(0, 1fr) 75px auto 85px;
   align-items: center;
   gap: 4px;
   position: relative;
@@ -200,7 +207,44 @@ main { padding: 2px; }
 .test-meta, .muted { color: var(--muted); font-size: 13px; }
 .score-badge, .score-summary { font-weight: 600; color: var(--primary); }
 .run-stats { font-size: 11px; color: var(--muted); line-height: 1.3; }
-.score-summary { padding: 3px 5px; border-radius: 8px; background: #eef2ff; border: 1px solid #c7d2fe; margin-bottom: 2px; }
+.score-summary { padding: 3px 5px; border-radius: 8px; background: #eef2ff; border: 1px solid #c7d2fe; }
+.score-summary-row {
+  display: flex;
+  justify-content: space-between;
+}
+.score-stats-btn {
+  padding: 2px 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.score-stats-popover {
+  margin: 0px;
+  padding: 0px;
+}
+.score-stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.score-stats-content {
+  display: grid;
+  gap: 4px;
+}
+.score-stats-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px 60px;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 12px;
+  margin: 0px;
+  padding:0px
+}
+.score-stats-overall {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
 .result-box { border: 1px solid var(--line); border-radius: 6px; padding: 8px; background: #fff; }
 
 .status-line { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
@@ -266,6 +310,8 @@ main { padding: 2px; }
   .testing-controls { flex-direction: column; }
   .testing-controls .field { width: 100%; }
   .test-header { grid-template-columns: 1fr; }
+  .testing-folder-header { flex-wrap: wrap; }
+  .score-stats-item { grid-template-columns: 1fr; }
 }
 
 /* 针对 class 或 id 为 testingTree 的元素进行设置 */
@@ -538,5 +584,30 @@ blockquote{
   overflow: auto;
   margin-bottom: 2px;
 }
-
 #savedResultSelect{width:200px}
+
+.toast-container {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  background: #0f172a;
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  box-shadow: var(--shadow);
+}
+.toast.show {
+  opacity: 0.96;
+  transform: translateY(0);
+}

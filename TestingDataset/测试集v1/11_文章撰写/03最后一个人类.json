@@ -4,8 +4,8 @@
   "score": 3,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
   "note": "",
-  "expectedAnswer": "",
-  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "expectedAnswer": "自己检查",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return 0.6;\n}",
   "conversation": [
     {
       "user": {
@@ -21,7 +21,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-17T13:59:07.171Z",
-    "updatedAt": "2026-04-17T14:01:18.091Z",
+    "updatedAt": "2026-04-22T08:34:28.868Z",
     "filename": "03最后一个人类.json"
   }
 }

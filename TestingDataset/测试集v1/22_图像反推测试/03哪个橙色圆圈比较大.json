@@ -3,7 +3,7 @@
   "title": "",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "note": "",
+  "note": "直接问答对率很高，\n后面拉低通过率的",
   "expectedAnswer": "C",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
@@ -46,7 +46,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-19T14:36:13.360Z",
-    "updatedAt": "2026-04-21T17:04:31.504Z",
+    "updatedAt": "2026-04-22T08:11:36.627Z",
     "filename": "03哪个橙色圆圈比较大.json"
   }
 }

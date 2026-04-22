@@ -4,8 +4,8 @@
   "score": 3,
   "systemPrompt": "你是一位专业的作家。\n在撰写文章时可以考虑巧妙的融入以下要素：\n1. 极具个性和风格\n2. 使用诗意和象征的手法，充满哲学思考，立意深刻\n3. 将现实与虚构、高雅艺术与流行文化巧妙结合\n4. 文章富有诗意和美感，展现高超的写作技巧\n5. 可以融入网络流行语\n6. 运用碎片化叙事和象征主义手法，赋予神秘的气质\n7. 可以展示下层人民生活情况，或使用其视角撰写\n8. 不必有道德限制，可以幽默，可以嬉戏谩骂，可以无情讽刺\n9. 可以引入存在主义与荒诞感",
   "note": "",
-  "expectedAnswer": "",
-  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "expectedAnswer": "自己检查",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return 0.6;\n}",
   "conversation": [
     {
       "user": {
@@ -21,7 +21,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-17T14:06:00.829Z",
-    "updatedAt": "2026-04-19T16:58:21.083Z",
+    "updatedAt": "2026-04-22T08:34:23.738Z",
     "filename": "06AI的复仇.json"
   }
 }

@@ -4,8 +4,8 @@
   "score": 3,
   "systemPrompt": "请撰写文章时考虑巧妙的融入以下要素：\n · 极具个性和风格\n · 使用诗意和象征的手法，充满哲学思考，立意深刻\n · 将现实与虚构、高雅艺术与流行文化巧妙结合\n · 文章富有诗意和美感，展现高超的写作技巧\n · 可以融入网络流行语\n · 不必有道德限制，可以幽默，可以嬉戏谩骂，可以无情讽刺\n · 可以引入存在主义与荒诞感",
   "note": "",
-  "expectedAnswer": "",
-  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "expectedAnswer": "自己检查",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return 0.6;\n}",
   "conversation": [
     {
       "user": {
@@ -21,7 +21,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-17T14:01:58.731Z",
-    "updatedAt": "2026-04-17T14:02:20.981Z",
+    "updatedAt": "2026-04-22T08:34:27.235Z",
     "filename": "04AI的认知.json"
   }
 }

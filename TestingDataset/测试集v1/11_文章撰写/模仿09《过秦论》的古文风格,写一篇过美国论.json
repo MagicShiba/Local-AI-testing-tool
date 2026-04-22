@@ -4,8 +4,8 @@
   "score": 3,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
   "note": "",
-  "expectedAnswer": "",
-  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "expectedAnswer": "自己检查",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return 0.6;\n}",
   "conversation": [
     {
       "user": {
@@ -21,7 +21,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-18T04:13:51.741Z",
-    "updatedAt": "2026-04-19T17:00:03.006Z",
+    "updatedAt": "2026-04-22T07:53:08.519Z",
     "filename": "模仿09《过秦论》的古文风格,写一篇过美国论.json"
   }
 }

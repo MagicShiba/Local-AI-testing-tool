@@ -235,7 +235,17 @@
           </div>
           <div class="testing-layout">
             <aside class="sidebar">
-              <div id="scoreSummary" class="score-summary">总分：0 / 0</div>
+              <div class="score-summary-row">
+                <div id="scoreSummary" class="score-summary">总分：0.0 / 0.0</div>
+                <button id="scoreStatsBtn" type="button" class="score-stats-btn">得分统计</button>
+              </div>
+              <div id="scoreStatsPopover" class="score-stats-popover hidden">
+                <div class="score-stats-header">
+                  <strong>得分统计</strong>
+                  <button id="closeScoreStatsBtn" type="button">关闭</button>
+                </div>
+                <div id="scoreStatsContent" class="score-stats-content"></div>
+              </div>
               <div class="field">
                 <label>题目目录</label>
                 <div id="testingTree" class="testing-tree"></div>
@@ -254,6 +264,7 @@
         </section>
       </main>
     </div>
+    <div id="toastContainer" class="toast-container"></div>
 
     <template id="roundTemplate">
       <div class="round-card">

@@ -4,8 +4,8 @@
   "score": 3,
   "systemPrompt": "你是一位专业的作家。",
   "note": "",
-  "expectedAnswer": "",
-  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "expectedAnswer": "自己检查",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return 0.6;\n}",
   "conversation": [
     {
       "user": {
@@ -21,7 +21,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-17T14:04:32.006Z",
-    "updatedAt": "2026-04-17T14:29:02.757Z",
+    "updatedAt": "2026-04-22T08:34:25.253Z",
     "filename": "05RTS的不合理.json"
   }
 }

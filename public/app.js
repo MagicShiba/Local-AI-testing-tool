@@ -55,6 +55,10 @@ const els = {
   testingPresetSelect: document.getElementById("testingPresetSelect"),
   testingList: document.getElementById("testingList"),
   scoreSummary: document.getElementById("scoreSummary"),
+  scoreStatsBtn: document.getElementById("scoreStatsBtn"),
+  closeScoreStatsBtn: document.getElementById("closeScoreStatsBtn"),
+  scoreStatsPopover: document.getElementById("scoreStatsPopover"),
+  scoreStatsContent: document.getElementById("scoreStatsContent"),
   savedResultSelect: document.getElementById("savedResultSelect"),
   resultName: document.getElementById("resultName"),
   testingTree: document.getElementById("testingTree"),
@@ -67,6 +71,7 @@ const els = {
   noteTitle: document.getElementById("noteTitle"),
   noteContent: document.getElementById("noteContent"),
   notePreview: document.getElementById("notePreview"),
+  toastContainer: document.getElementById("toastContainer"),
 };
 
 document.addEventListener("DOMContentLoaded", init);
@@ -95,7 +100,7 @@ function bindEvents() {
   els.tabs.forEach((tab) => tab.addEventListener("click", () => switchPage(tab.dataset.page)));
   document.getElementById("refreshTreeBtn").addEventListener("click", loadTree);
   document.getElementById("newNoteBtn").addEventListener("click", createNewNote);
-  document.getElementById("saveNoteBtn").addEventListener("click", saveNote);
+  document.getElementById("saveNoteBtn").addEventListener("click", () => saveNote({ showToast: true }));
   document.getElementById("deleteNoteBtn").addEventListener("click", deleteNote);
   document.getElementById("viewMarkdownBtn").addEventListener("click", () => setNoteViewMode("markdown"));
   document.getElementById("viewRawBtn").addEventListener("click", () => setNoteViewMode("raw"));
@@ -121,7 +126,7 @@ function bindEvents() {
       renderTestingList();
     }
   });
-  els.saveQuestionBtn.addEventListener("click", saveQuestion);
+  els.saveQuestionBtn.addEventListener("click", () => saveQuestion({ showToast: true }));
   els.quickRunQuestionBtn.addEventListener("click", quickRunCurrentQuestion);
   document.getElementById("newPresetBtn").addEventListener("click", createPreset);
   document.getElementById("deletePresetBtn").addEventListener("click", deletePreset);
@@ -144,11 +149,21 @@ function bindEvents() {
     state.testingPresetId = els.testingPresetSelect.value;
   });
   els.savedResultSelect.addEventListener("change", loadSelectedResult);
+  els.scoreStatsBtn?.addEventListener("click", () => {
+    updateScoreSummary();
+    els.scoreStatsPopover?.classList.toggle("hidden");
+  });
+  els.closeScoreStatsBtn?.addEventListener("click", () => {
+    els.scoreStatsPopover?.classList.add("hidden");
+  });
   document.addEventListener("keydown", (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === "s") {
       e.preventDefault();
-      if (state.selectedQuestionPath) {
-        saveQuestion();
+      const page = getActivePage();
+      if (page === "editor" && state.selectedQuestionPath) {
+        saveQuestion({ showToast: true });
+      } else if (page === "notes" && state.currentNoteId) {
+        saveNote({ showToast: true });
       }
     }
   });
@@ -488,8 +503,9 @@ function collectQuestionFromForm() {
   };
 }
 
-async function saveQuestion() {
+async function saveQuestion(options = {}) {
   if (!state.selectedQuestionPath) return;
+  const showToastOnSuccess = Boolean(options.showToast);
   const content = collectQuestionFromForm();
   await api("/api/question", { method: "POST", body: JSON.stringify({ path: state.selectedQuestionPath, content }) });
   state.currentQuestion = content;
@@ -503,6 +519,9 @@ async function saveQuestion() {
   updateUnsavedIndicator();
   await loadTree();
   await renderTestingList();
+  if (showToastOnSuccess) {
+    showToast("题目已保存");
+  }
 }
 
 async function quickRunCurrentQuestion() {
@@ -670,7 +689,7 @@ async function createTestingCard(item) {
   const summary = document.createElement("summary");
   const runStat = getRunStat(item.result);
   const fullScore = item.score;
-  summary.innerHTML = `<div class="test-header"><div class="test-title">${escapeHtml(item.title)}</div><div class="score-badge">${Number(item.manualScore ?? item.result?.score?.earned ?? 0)} / ${item.score}</div><div class="header-score-input"><div class="header-score-label">手动分数</div><div class="score-input-row"><input class="manualScoreInput" type="number" min="0" step="0.5" /><div class="quick-score-btns"><button type="button" class="quick-score-btn" data-score="${fullScore}">对</button><button type="button" class="quick-score-btn" data-score="0">错</button><button type="button" class="quick-score-btn" data-score="${fullScore / 2}">半</button></div></div></div><div class="run-stats">${runStat}</div></div>`;
+  summary.innerHTML = `<div class="test-header"><div class="test-title">${escapeHtml(item.title)}</div><div class="score-badge">${formatScore(item.manualScore ?? item.result?.score?.earned ?? 0)} / ${formatScore(item.score)}</div><div class="header-score-input"><div class="header-score-label">手动分数</div><div class="score-input-row"><input class="manualScoreInput" type="number" min="0" step="0.5" /><div class="quick-score-btns"><button type="button" class="quick-score-btn" data-score="${fullScore}">对</button><button type="button" class="quick-score-btn" data-score="0">错</button><button type="button" class="quick-score-btn" data-score="${fullScore / 2}">半</button></div></div></div><div class="run-stats">${runStat}</div></div>`;
   details.appendChild(summary);
 
   const body = document.createElement("div");
@@ -1220,7 +1239,8 @@ async function refreshTestingView() {
   for (const folderName of folderOrder) {
     const folderHeader = document.createElement("div");
     folderHeader.className = "testing-folder-header";
-    folderHeader.innerHTML = `<div class="testing-folder-main"><span class="testing-folder-toggle">▾</span><strong>${escapeHtml(folderName)}</strong><span class="testing-folder-count">(${itemsByFolder[folderName].length}题)</span></div><div class="testing-folder-actions"><button type="button" class="run-folder-btn">执行本组</button></div>`;
+    const folderStats = computeScoreStats(itemsByFolder[folderName]);
+    folderHeader.innerHTML = `<div class="testing-folder-main"><span class="testing-folder-toggle">▾</span><strong>${escapeHtml(folderName)}</strong><span class="testing-folder-count">(${itemsByFolder[folderName].length}题)</span></div><div class="testing-folder-score">得分:${formatScore(folderStats.earned)} / ${formatScore(folderStats.total)}</div><div class="testing-folder-actions"><button type="button" class="run-folder-btn">测试本组</button></div>`;
     folderHeader.addEventListener("click", () => {
       folderHeader.classList.toggle("collapsed");
       const toggle = folderHeader.querySelector(".testing-folder-toggle");
@@ -1261,9 +1281,9 @@ async function refreshTestingView() {
 }
 
 function updateScoreSummary() {
-  const total = state.testingItems.reduce((sum, item) => sum + Number(item.score || 0), 0);
-  const earned = state.testingItems.reduce((sum, item) => sum + Number(item.manualScore ?? item.result?.score?.earned ?? 0), 0);
-  els.scoreSummary.textContent = `总分：${earned} / ${total}`;
+  const summary = computeScoreStats(state.testingItems);
+  els.scoreSummary.textContent = `总分：${formatScore(summary.earned)} / ${formatScore(summary.total)}`;
+  renderScoreStatsPanel();
 }
 
 function toggleAllTests(expanded) {
@@ -1713,6 +1733,75 @@ function cloneSimpleJson(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
 }
 
+function formatScore(value) {
+  const n = Number(value || 0);
+  return Number.isFinite(n) ? n.toFixed(1) : "0.0";
+}
+
+function isMeasuredItem(item) {
+  if (item.manualScore !== undefined && item.manualScore !== null) return true;
+  if (!item.result || !item.result.score) return false;
+  return Number.isFinite(Number(item.result.score.earned));
+}
+
+function getItemEarnedScore(item) {
+  if (item.manualScore !== undefined && item.manualScore !== null) return Number(item.manualScore || 0);
+  return Number(item.result?.score?.earned || 0);
+}
+
+function computeScoreStats(items) {
+  let total = 0;
+  let earned = 0;
+  let measuredTotal = 0;
+  let measuredEarned = 0;
+  let unmeasuredTotal = 0;
+  for (const item of items || []) {
+    const itemTotal = Number(item.score || 0);
+    const itemEarned = getItemEarnedScore(item);
+    const measured = isMeasuredItem(item);
+    total += itemTotal;
+    earned += itemEarned;
+    if (measured) {
+      measuredTotal += itemTotal;
+      measuredEarned += itemEarned;
+    } else {
+      unmeasuredTotal += itemTotal;
+    }
+  }
+  return { total, earned, measuredTotal, measuredEarned, unmeasuredTotal };
+}
+
+function renderScoreStatsPanel() {
+  if (!els.scoreStatsContent) return;
+  const overall = computeScoreStats(state.testingItems);
+  const groups = {};
+  state.testingItems.forEach((item) => {
+    const folder = item.folderName || "未分组";
+    if (!groups[folder]) groups[folder] = [];
+    groups[folder].push(item);
+  });
+  const rows = [];
+  rows.push(`<div class="score-stats-item score-stats-overall"><strong>总计</strong><span>已测:${formatScore(overall.measuredEarned)}/${formatScore(overall.measuredTotal)}</span><span>未测:${formatScore(overall.unmeasuredTotal)}</span></div>`);
+  Object.keys(groups).sort((a, b) => a.localeCompare(b, "zh-Hans-CN")).forEach((folderName) => {
+    const stat = computeScoreStats(groups[folderName]);
+    rows.push(`<div class="score-stats-item"><strong>${escapeHtml(folderName)}</strong><span>已测:${formatScore(stat.measuredEarned)}/${formatScore(stat.measuredTotal)}</span><span>未测:${formatScore(stat.unmeasuredTotal)}</span></div>`);
+  });
+  els.scoreStatsContent.innerHTML = rows.join("");
+}
+
+function showToast(message) {
+  if (!els.toastContainer) return;
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.textContent = message;
+  els.toastContainer.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("show"));
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 180);
+  }, 1800);
+}
+
 async function loadNotes() {
   state.notes = await api("/api/notes");
 }
@@ -1798,8 +1887,9 @@ function setNoteViewMode(mode) {
   renderNotePreview();
 }
 
-async function saveNote() {
+async function saveNote(options = {}) {
   if (!state.currentNoteId || !state.currentNote) return;
+  const showToastOnSuccess = Boolean(options.showToast);
   const payload = {
     id: state.currentNoteId,
     title: els.noteTitle.value,
@@ -1808,6 +1898,9 @@ async function saveNote() {
   };
   await api("/api/note", { method: "POST", body: JSON.stringify(payload) });
   await loadNotes();
+  if (showToastOnSuccess) {
+    showToast("笔记已保存");
+  }
 }
 
 async function deleteNote() {
