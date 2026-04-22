@@ -133,6 +133,7 @@ function bindEvents() {
   document.getElementById("runAllBtn").addEventListener("click", runAllTests);
   document.getElementById("collapseAllBtn").addEventListener("click", () => toggleAllTests(false));
   document.getElementById("expandAllBtn").addEventListener("click", () => toggleAllTests(true));
+  document.getElementById("clearTestingBtn").addEventListener("click", clearTestingContent);
   document.getElementById("saveResultBtn").addEventListener("click", saveResult);
   els.collapseAllFloatBtn.addEventListener("click", () => toggleAllTests(false));
   els.scrollTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
@@ -492,10 +493,16 @@ async function saveQuestion() {
   const content = collectQuestionFromForm();
   await api("/api/question", { method: "POST", body: JSON.stringify({ path: state.selectedQuestionPath, content }) });
   state.currentQuestion = content;
+  const existingTestingItem = state.testingItems.find((item) => item.path === state.selectedQuestionPath);
+  if (existingTestingItem) {
+    existingTestingItem.question = cloneSimpleJson(content);
+    existingTestingItem.title = content.title || existingTestingItem.fileName || existingTestingItem.title;
+    existingTestingItem.score = Number(content.score || 0);
+  }
   state.hasUnsavedChanges = false;
   updateUnsavedIndicator();
   await loadTree();
-  renderTestingList();
+  await renderTestingList();
 }
 
 async function quickRunCurrentQuestion() {
@@ -1364,6 +1371,25 @@ async function loadSelectedResult() {
   }
 }
 
+async function clearTestingContent() {
+  stopAllTests();
+  state.isLoadingResult = false;
+  state.pendingTestingFocusPath = "";
+  state.testingSelectedPath = "";
+  if (els.savedResultSelect) {
+    els.savedResultSelect.value = "";
+  }
+  state.testingItems.forEach((item) => {
+    item.result = null;
+    item.manualScore = null;
+    item.followUpText = "";
+    item.running = false;
+    item.stopRequested = false;
+    item.abortController = null;
+  });
+  await refreshTestingView();
+}
+
 function renderTestingTree() {
   els.testingTree.innerHTML = "";
   const set = state.tree.sets.find((item) => item.name === state.testingSet);
@@ -1426,7 +1452,7 @@ function scrollToTestingCard(path, options = {}) {
   const topbarHeight = document.querySelector(".topbar")?.offsetHeight || 60;
   const folderHeaderHeight = card.closest(".testing-folder-body")?.previousElementSibling?.offsetHeight || 0;
   const summaryHeight = card.querySelector("summary")?.offsetHeight || 0;
-  const y = card.getBoundingClientRect().top + window.scrollY - topbarHeight - folderHeaderHeight - summaryHeight - 12;
+  const y = card.getBoundingClientRect().top + window.scrollY - topbarHeight - folderHeaderHeight;
   window.scrollTo({ top: Math.max(0, y), behavior: options.behavior || "smooth" });
 }
 
@@ -1681,6 +1707,10 @@ function cssEscape(value) {
     return window.CSS.escape(value);
   }
   return String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+function cloneSimpleJson(value) {
+  return value == null ? value : JSON.parse(JSON.stringify(value));
 }
 
 async function loadNotes() {

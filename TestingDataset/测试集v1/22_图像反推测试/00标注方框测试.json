@@ -5,14 +5,14 @@
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
   "note": "由于Qwen和Gemma都很容易直接给出下面这种过拟合结果，\n而且回答+标注混杂不好处理，直接输出容易出错。\n因此给了两轮机会。\n[\n  {\"box_2d\": [244, 256, 948, 405], \"label\": \"person\"},\n  {\"box_2d\": [357, 606, 655, 803], \"label\": \"cat\"}\n]",
   "expectedAnswer": "看情况给吧",
-  "checker": "function checkAnswer(answer, correctAnswer, ctx) {\n  const result = answer.replace(/```json|```/g, '');\n  //背景\n  const image = \"/dataset-file/测试集v1/assets/imgbox1.jpg\";\n  //插入html\n  const getVisualizerHtml = () => `\n  <!DOCTYPE html><html><head>\n  <meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <style>\n    body { margin: 0; padding: 20px; display: flex; justify-content: center; background: #f4f4f4; min-height: 100vh; box-sizing: border-box; }\n    .container { position: relative; display: inline-block; line-height: 0; }\n    img { max-width: 100%; max-height: calc(100vh - 40px); display: block; object-fit: contain; }\n    .box { position: absolute; border: 2px solid; pointer-events: none; box-sizing: border-box; }\n    .label { position: absolute; top: -20px; left: -2px; color: white; font-size: 12px; padding:10px; font-weight: bold;}\n  </style></head><body>\n  <div class=\"container\" id=\"c\"><img src=\"${image}\" id=\"i\"></div>\n  <script>\n  (function() {\n    const data = ${result};\n    const container = document.getElementById('c');\n    const getColor = (idx) => \\`hsl(\\${idx * 137.5 % 360}, 80%, 50%)\\`;\n    data.forEach((item, idx) => {\n      const color = getColor(idx);\n      for (let name in item) {\n        const [x1, y1, x2, y2] = item[name];\n        const box = document.createElement('div');\n        box.className = 'box';\n        // 直接使用百分比 (%)，实现真正的自适应缩放\n        Object.assign(box.style, {\n          left: (x1 * 100) + '%',\n          top: (y1 * 100) + '%',\n          width: ((x2 - x1) * 100) + '%',\n          height: ((y2 - y1) * 100) + '%',\n          borderColor: color\n        });\n        const lbl = document.createElement('div');\n        lbl.className = 'label';\n        lbl.innerText = name;\n        lbl.style.backgroundColor = color;\n        box.appendChild(lbl);\n        container.appendChild(box);\n      }\n    });\n  })();\n  </script></body></html>`;\n\n  const encodedHtml = btoa(encodeURIComponent(getVisualizerHtml()));\n  \n  return {percent:0.5,\n  html: `<div><button type=\"button\" \n  onclick=\"const w=window.open(); w.document.write(decodeURIComponent(atob('${encodedHtml}'))); w.document.close();\"\n  style=\"cursor:pointer;\">\n  查看可视化结果\n  </button></div>`\n  };\n}\n",
+  "checker": "function checkAnswer(answer, correctAnswer, ctx) {\n //替换json标记\n const result = answer.replace(/```json|```/g, '');\n //图像\n const image = \"/dataset-file/测试集v1/assets/imgbox1.jpg\"\n //传入网页\n const getVisualizerHtml = () => `\n<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <style>\nbody{ margin:0; padding:20px; display:flex; justify-content:center; align-items:flex-start;}\n.container {position:relative;display:inline-block;line-height:0;box-shadow: 2px 2px 13px 5px rgb(0,0,0,0.4);}\nimg {display:block;max-width:100vw;max-height:calc(100vh - 40px);object-fit:contain;}\n.box{position:absolute; border:2px solid; pointer-events:none; box-sizing:border-box;}\n.label{position:absolute; top:-2px;color:white; font-size:12px; padding:10px;font-weight:bold;z-index:10;}\n</style></head><body>\n<div class=\"container\" id=\"c\"><img src=\"${image}\" id=\"i\"></div>\n<script>(function(){\nconst data = ${result};\nconst container = document.getElementById('c');\nconst getColor = (idx) => \\`hsl(\\${idx * 137.5 % 360}, 80%, 50%)\\`;\ndata.forEach((item, idx) => {\nconst color = getColor(idx);\nfor (let name in item) {\nconst [x1, y1, x2, y2] = item[name];\nif (!x1 && x1 !== 0) continue; //简单校验数据有效性\nconst box = document.createElement('div');\nbox.className = 'box';\nObject.assign(box.style, {\nleft:(x1 * 100) + '%',\ntop:(y1 * 100) + '%',\nwidth:((x2 - x1) * 100) + '%',\nheight:((y2 - y1) * 100) + '%',\nborderColor:color});\nconst lbl = document.createElement('div');\nlbl.className = 'label';\nlbl.innerText = name;\nlbl.style.backgroundColor = color;\nbox.appendChild(lbl);\ncontainer.appendChild(box);\n}});})();</script></body></html>`;\n\n const encodedHtml = btoa(encodeURIComponent(getVisualizerHtml()));\n return {\n percent: (answer.trim() === correctAnswer.trim()) ? 1 : 0.5,\n html: `<div><button type=\"button\"\n onclick=\"const w=window.open(); w.document.write(decodeURIComponent(atob('${encodedHtml}'))); w.document.close();\">\n 查看可视化结果\n </button>\n </div>`\n };\n}",
   "conversation": [
     {
       "user": {
         "parts": [
           {
             "type": "text",
-            "text": "详细识别图中物体。\n并给出相应的坐标。"
+            "text": "详细识别图中物体。并给出相应的坐标。"
           },
           {
             "type": "image",
@@ -23,7 +23,7 @@
       "assistant": [
         {
           "mode": "generate",
-          "content": ""
+          "content": "[\n  {\"bbox_2d\": [172, 443, 577, 775], \"label\": \"小猫\"},\n  {\"bbox_2d\": [386, 365, 897, 598], \"label\": \"小猫\"},\n  {\"bbox_2d\": [155, 157, 509, 465], \"label\": \"纸箱\"},\n  {\"bbox_2d\": [282, 760, 494, 900], \"label\": \"小木棍\"},\n  {\"bbox_2d\": [0, 0, 756, 370], \"label\": \"水泥柱\"},\n  {\"bbox_2d\": [749, 5, 986, 198], \"label\": \"水泥柱\"}\n]"
         }
       ]
     },
@@ -46,7 +46,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-21T17:12:43.144Z",
-    "updatedAt": "2026-04-21T20:46:59.862Z",
+    "updatedAt": "2026-04-22T06:38:12.465Z",
     "filename": "00标注方框测试.json"
   }
 }

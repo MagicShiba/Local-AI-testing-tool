@@ -123,6 +123,8 @@ main { padding: 2px; }
 }
 .testing-folder-header:first-child {
   margin-top: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 55px auto 85px;
 }
 .testing-folder-header.collapsed {
   border-radius: 4px;
@@ -187,7 +189,7 @@ main { padding: 2px; }
   align-items: center;
   gap: 4px;
   position: relative;
-  padding: 3px 0;
+  padding:0px;
 }
 .test-card.status-correct > summary { background: #ecfdf3; }
 .test-card.status-wrong > summary { background: #fef2f2; }
@@ -536,3 +538,5 @@ blockquote{
   overflow: auto;
   margin-bottom: 2px;
 }
+
+#savedResultSelect{width:200px}
