@@ -62,7 +62,7 @@ const defaultQuestion = (filename = "问题1.json") => ({
           },
         ],
       },
-      assistant: [],
+      assistant: [{ mode: "generate", content: "" }],
     },
   ],
   checker: `function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}`,
@@ -101,8 +101,8 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(3000, () => {
-  console.log("本地AI测试工具已启动: http://127.0.0.1:3000");
+server.listen(15397, () => {
+  console.log("本地AI测试工具已启动: http://127.0.0.1:15397");
 });
 
 async function handleApi(req, res, url) {
@@ -949,7 +949,7 @@ async function readDatasetTree() {
 }
 
 function absoluteDatasetAssetUrl(assetPath) {
-  return `http://127.0.0.1:3000/dataset-file/${encodeURIComponent(String(assetPath).replaceAll("\\", "/"))}`;
+  return `http://127.0.0.1:15397/dataset-file/${encodeURIComponent(String(assetPath).replaceAll("\\", "/"))}`;
 }
 
 async function datasetAssetToDataUrl(assetPath) {

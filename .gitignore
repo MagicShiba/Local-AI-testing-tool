@@ -3,6 +3,7 @@
 
 # 忽略计划
 todo.md
+TODO.md
 
 # 忽略其它测试集，保留主测试集
 TestingDataset/*

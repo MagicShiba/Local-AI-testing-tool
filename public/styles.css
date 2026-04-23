@@ -43,7 +43,7 @@ main { padding: 2px; }
 .panel-header { display: flex; justify-content: space-between; align-items: center; gap: 6px;}
 .panel-header h2, .panel-header h3, .panel-header h4 { margin: 0; }
 .panel-header.sticky { position: sticky; top: 65px; background: var(--panel); z-index: 4; padding: 6px 0; border-bottom: 1px solid var(--line); margin-bottom: 8px;background: #88ccff; }
-.floating-controls { position: fixed; top: 70px; right: 3px; z-index: 50; display: flex; flex-direction: column; gap: 4px; }
+.floating-controls { position: fixed; bottom: 50px; right: 10px; z-index: 50; display: flex; flex-direction: column; gap: 4px; }
 .floating-controls button {padding: 3px 6px; box-shadow: var(--shadow); }
 .scroll-top-btn { background: var(--primary); color: #fff; border-color: var(--primary); }
 .collapse-all-btn { background: #fff; }
@@ -622,7 +622,7 @@ blockquote{
   margin-bottom: 2px;
 }
 #savedResultSelect{width:200px}
-
+#checker{font-family: 'Courier New', Courier, monospace;}
 .toast-container {
   position: fixed;
   right: 12px;

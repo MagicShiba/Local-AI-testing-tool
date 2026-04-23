@@ -318,10 +318,15 @@ async function createFolder() {
   await loadTree();
 }
 
+let pendingTitle = "";
+
 async function createQuestion() {
-  const fileName = (els.newQuestionName.value.trim() || "问题1.json");
+  const rawName = els.newQuestionName.value.trim();
+  const fileName = rawName || "问题1.json";
+  const questionTitle = fileName.replace(/\.json$/i, "");
   const target = getSelectedFolderTarget();
   if (!target.setName || !target.folderName) return;
+  pendingTitle = questionTitle;
   const result = await api("/api/create-question", { method: "POST", body: JSON.stringify({ setName: target.setName, folderName: target.folderName, fileName }) });
   els.newQuestionName.value = "";
   await loadTree();
@@ -404,7 +409,21 @@ function renderEditor() {
   els.checker.value = question.checker || "";
   els.rounds.innerHTML = "";
   (question.conversation || []).forEach((round, index) => els.rounds.appendChild(createRoundEditor(round, index)));
-  state.hasUnsavedChanges = false;
+  if (pendingTitle) {
+    els.title.value = pendingTitle;
+    question.title = pendingTitle;
+    const firstRound = els.rounds.children[0];
+    const textField = firstRound?.querySelector(".part-text");
+    if (textField) {
+      textField.value = pendingTitle;
+      if (question.conversation?.[0]?.user?.parts?.[0]) {
+        question.conversation[0].user.parts[0].text = pendingTitle;
+      }
+    }
+    pendingTitle = "";
+    state.hasUnsavedChanges = true;
+  }
+  state.hasUnsavedChanges = !!pendingTitle;
   updateUnsavedIndicator();
 }
 
@@ -755,7 +774,7 @@ async function renderQuestionConversation(item, targetEl) {
   const followWrap = document.createElement("details");
   followWrap.className = "drawer";
   followWrap.open = false;
-  followWrap.innerHTML = `<summary style="cursor:pointer;list-style:none;cursor:pointer;">追问 ▾</summary><div class="field"><textarea class="followUpInput" rows="3" placeholder="会以当前上下文继续提问"></textarea></div><div class="toolbar"><button type="button" class="sendFollowUpBtn">发送追问</button></div>`;
+  followWrap.innerHTML = `<summary style="position: unset;">追问 ▾</summary><div class="field"><textarea class="followUpInput" rows="3" placeholder="会以当前上下文继续提问"></textarea></div><div class="toolbar"><button type="button" class="sendFollowUpBtn">发送追问</button></div>`;
   followWrap.querySelector(".followUpInput").value = item.followUpText || "";
   followWrap.querySelector(".followUpInput").addEventListener("input", (event) => {
     item.followUpText = event.target.value;
