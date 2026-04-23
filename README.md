@@ -1,6 +1,6 @@
-# 本地 AI 测试项目
+# 本地 AI 测试工具
 
-这是一个使用 OpenAI api 接口的本地LLM项目，使用 Node.js + 原生前端实现。
+这是一个使用 OpenAI api 接口的本地LLM测试工具，使用 Node.js + 原生前端实现。
 
 ## 功能
 

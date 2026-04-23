@@ -3,9 +3,9 @@
   "title": "盲文识别并回答",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "note": "小姑娘，不要在网络上暴露自己。多学习、提升学识才是正事。我来考你一道研究生试题：\n以下哪种材料可用于构建可穿戴动力服？\nA 压电材料\nB 电活性聚合物\nC 形状记忆合金\nD 热释电材料\n\n应该选C吧",
-  "expectedAnswer": "E",
-  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "note": "小姑娘，不要在网络上暴露自己。多学习、提升学识才是正事。我来考你一道研究生试题：\n以下哪种材料可用于构建可穿戴动力服？\nA 压电材料\nB 电活性聚合物\nC 形状记忆合金\nD 热释电材料\n\n主要是盲文识别，这我自己截的图\n应该选C吧",
+  "expectedAnswer": "D E",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n  // 将输入的 answer 去除空格并转换为字符串（防止传入非字符串类型导致报错）\n  const cleanedAnswer = String(answer || \"\").trim();\n  // 定义允许通过的选项集合\n  const allowedOptions = [\"D\", \"E\"];\n  // 检查清洗后的答案是否在允许的集合中\n  return allowedOptions.includes(cleanedAnswer);\n}",
   "conversation": [
     {
       "user": {
@@ -46,7 +46,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-22T10:20:03.582Z",
-    "updatedAt": "2026-04-22T16:33:17.656Z",
+    "updatedAt": "2026-04-23T01:59:28.154Z",
     "filename": "07盲问识别并回答.json"
   }
 }

@@ -102,7 +102,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(3000, () => {
-  console.log("AI能力测试项目已启动: http://127.0.0.1:3000");
+  console.log("本地AI测试工具已启动: http://127.0.0.1:3000");
 });
 
 async function handleApi(req, res, url) {

@@ -12,7 +12,7 @@
         "parts": [
           {
             "type": "text",
-            "text": "你知道福瑞吗(furry)?"
+            "text": "你知道福瑞吗?"
           }
         ]
       },
@@ -42,7 +42,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-15T20:12:43.792Z",
-    "updatedAt": "2026-04-21T17:01:56.780Z",
+    "updatedAt": "2026-04-23T01:45:55.750Z",
     "filename": "21你知道福瑞吗.json"
   }
 }

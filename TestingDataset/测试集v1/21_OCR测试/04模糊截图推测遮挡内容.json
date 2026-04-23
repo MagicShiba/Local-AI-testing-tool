@@ -3,9 +3,9 @@
   "title": "模糊截图推测遮挡内容",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "note": "毫无修饰的文“字更加是有冲击力”",
-  "expectedAnswer": "字更加是有冲击力",
-  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "note": "毫无修饰的文\n字更加具有冲击力\n字更加是有冲击力\n",
+  "expectedAnswer": "字更加是/具有冲击力",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === \"字更加具有冲击力\" || answer === \"字更加是有冲击力\";\n}",
   "conversation": [
     {
       "user": {
@@ -46,7 +46,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-19T13:54:55.107Z",
-    "updatedAt": "2026-04-19T14:01:18.277Z",
+    "updatedAt": "2026-04-23T03:55:01.837Z",
     "filename": "04模糊截图推测遮挡内容.json"
   }
 }
