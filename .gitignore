@@ -1,6 +1,10 @@
-# 忽略测试结果,保留测试集
+# 忽略测试结果
 /app-data/results/
 
+# 忽略计划
+todo.md
+
+# 忽略其它测试集，保留主测试集
 TestingDataset/*
 
 !TestingDataset/测试集v1/
