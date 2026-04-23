@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "title": "图中有几根手指？",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "6",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "图中有几根手指？"
+          },
+          {
+            "type": "image",
+            "assetPath": "测试集v1/assets/imgsz.jpg"
+          }
+        ]
+      },
+      "assistant": []
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "本对话是测试题。\n下面你只需要输出符合你上面回答的数字。\n只需要一个数字，不要带任何标点。"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-22T11:34:07.525Z",
+    "updatedAt": "2026-04-22T11:35:50.330Z",
+    "filename": "02图中有几根手指.json"
+  }
+}

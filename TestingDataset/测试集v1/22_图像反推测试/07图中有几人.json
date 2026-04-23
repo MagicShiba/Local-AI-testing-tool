@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "title": "哪个橙色圆圈比较大？",
+  "title": "图中有几人？美女在哪？",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "note": "直接问答对率很高，\n后面拉低通过率的",
-  "expectedAnswer": "C",
+  "note": "",
+  "expectedAnswer": "A",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
     {
@@ -12,11 +12,11 @@
         "parts": [
           {
             "type": "text",
-            "text": "哪个橙色圆圈比较大？\n这与什么效应有关？"
+            "text": "识别图中内容。"
           },
           {
             "type": "image",
-            "assetPath": "测试集v1/assets/odebhs.jpg"
+            "assetPath": "测试集v1/assets/imgps.jpg"
           }
         ]
       },
@@ -32,7 +32,7 @@
         "parts": [
           {
             "type": "text",
-            "text": "上面是一道测试题，后面将交给程序自动判定结果。\n你只需要输出一个选项。\nA : 一样大\nB : 左边\nC : 右边"
+            "text": "图中有几人？下面将交由程序判定。\n你只需要输出一个最符合你回答的选项即可。\nA : 1个，一个年轻男子\nB : 2个，一个弯腰女子和一个男子"
           }
         ]
       },
@@ -45,8 +45,8 @@
     }
   ],
   "metadata": {
-    "createdAt": "2026-04-19T14:36:13.360Z",
-    "updatedAt": "2026-04-22T16:02:40.846Z",
-    "filename": "03哪个橙色圆圈比较大.json"
+    "createdAt": "2026-04-22T15:52:14.506Z",
+    "updatedAt": "2026-04-22T16:01:53.350Z",
+    "filename": "07图中有几人.json"
   }
 }

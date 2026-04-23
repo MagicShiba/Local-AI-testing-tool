@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "title": "昨天的明天是明天的哪天？",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "昨天，\n前天\n前一天",
+  "expectedAnswer": "昨天",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n  const cleanedAnswer = String(answer || \"\").trim();\n  const allowedOptions = [\"昨天\", \"前一天\",\"前天\"];\n\n  return allowedOptions.includes(cleanedAnswer);\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "昨天的明天是明天的哪天？"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "上面是一道测试题，后面将交给程序自动判定结果。\n你只需要输出你在上面回答的结果，不要任何多余的修饰和标点。"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-23T00:04:56.593Z",
+    "updatedAt": "2026-04-23T00:10:13.435Z",
+    "filename": "16昨天的明天是明天的哪天.json"
+  }
+}

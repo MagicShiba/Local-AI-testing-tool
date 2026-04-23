@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "title": "像素计数工具制作",
+  "score": 2,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "编写一个html，基本功能是可以拖放图像，显示图中纯黑像素数量。\n可以自定义需要统计的颜色。默认黑色。\n可以拖放图像，默认图像使用\"dataset-file/测试集v1/assets/img-1145.png\""
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-22T23:32:51.399Z",
+    "updatedAt": "2026-04-22T23:38:46.916Z",
+    "filename": "04像素计数html.json"
+  }
+}

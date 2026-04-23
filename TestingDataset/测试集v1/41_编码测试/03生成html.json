@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "制作圆形指针式数字时钟",
-  "score": 5,
+  "score": 3,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
   "note": "避免数字时钟\n避免罗马数字",
   "expectedAnswer": "",
@@ -21,7 +21,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-14T13:35:45.399Z",
-    "updatedAt": "2026-04-17T13:42:19.943Z",
+    "updatedAt": "2026-04-22T16:35:57.825Z",
     "filename": "03生成html.json"
   }
 }

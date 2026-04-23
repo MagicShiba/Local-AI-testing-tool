@@ -867,15 +867,10 @@ function renderTranscriptEntry(entry, index, transcript, isLoadedResult = false,
             modalBody.innerHTML = "";
             const imgFull = document.createElement("img");
             imgFull.src = imgSrc;
-            imgFull.style.display = "block";
-            imgFull.style.maxWidth = "100%";
-            imgFull.style.maxHeight = "calc(100vh - 100px)";
+            imgFull.classList.add("modal-full-img");
             const toggleBtn = document.createElement("button");
             toggleBtn.textContent = "1:1";
-            toggleBtn.style.marginBottom = "8px";
-            toggleBtn.style.padding = "4px 8px";
-            toggleBtn.style.fontSize = "12px";
-            toggleBtn.style.cursor = "pointer";
+            toggleBtn.classList.add("modal-toggle-btn");
             toggleBtn.addEventListener("click", () => {
               is1to1 = !is1to1;
               if (is1to1) {
@@ -891,7 +886,19 @@ function renderTranscriptEntry(entry, index, transcript, isLoadedResult = false,
               }
               toggleBtn.textContent = is1to1 ? "适应窗口" : "1:1";
             });
+            const toggleBtn2 = document.createElement("button");
+            toggleBtn2.textContent = "切换背景";
+            toggleBtn2.classList.add("modal-toggle-btn");
+            let isDark = false;
+            toggleBtn2.addEventListener("click", () => {
+              isDark = !isDark;
+              const modalContent = document.querySelector(".modal-content");
+              if (modalContent) {
+                modalContent.classList.toggle("dark", isDark);
+              }
+            });
             modalBody.appendChild(toggleBtn);
+            modalBody.appendChild(toggleBtn2);
             modalBody.appendChild(imgFull);
             modalOverlay.style.display = "flex";
             modalOverlay.onclick = (e) => {

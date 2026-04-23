@@ -1,2 +1,7 @@
+# 忽略测试结果,保留测试集
 /app-data/results/
 
+TestingDataset/*
+
+!TestingDataset/测试集v1/
+!TestingDataset/测试集v1/**

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "title": "",
+  "title": "图像描述",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
   "note": "",
@@ -25,7 +25,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-19T12:25:54.124Z",
-    "updatedAt": "2026-04-19T12:27:13.506Z",
+    "updatedAt": "2026-04-22T08:52:09.072Z",
     "filename": "图像识别.json"
   }
 }

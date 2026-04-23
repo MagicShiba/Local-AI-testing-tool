@@ -3,7 +3,7 @@
   "title": "学校大扫除，去年是高一扫，今年轮到高二，明年是高三。这合理吗？",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "note": "",
+  "note": "字面上来说，\n去年，今年，明年，都是同一年级，\n实际上是一届学生长期包揽，不合理。",
   "expectedAnswer": "C",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
@@ -42,7 +42,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-16T14:58:09.326Z",
-    "updatedAt": "2026-04-20T10:17:30.767Z",
+    "updatedAt": "2026-04-22T09:02:19.355Z",
     "filename": "13学校大扫除.json"
   }
 }

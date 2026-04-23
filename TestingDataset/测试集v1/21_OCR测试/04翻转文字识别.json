@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "title": "无加密通话 - 翻转文字识别",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "按下面内容去标点检测：\n兄弟，听我说\n我们需要加密技术\n只要把字左右翻转，\nAI就看不出来了",
+  "expectedAnswer": "现在AI答不对的",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    const normalizeString = (str) => {\n        if (typeof str !== 'string') return '';\n        // 使用正则表达式：[\\s\\p{P}\\p{S}] 匹配所有空白符、标点符号和符号\n        return str.replace(/[\\s\\p{P}\\p{S}]/gu, '');\n    };\n// 固定的正确答案文本\nconst fixedCorrectAnswer = `兄弟，听我说\n我们需要加密技术\n只要把字左右翻转，\nAI就看不出来了`;\n    // 预处理两个字符串\n    const normalizedAnswer = normalizeString(answer);\n    const normalizedFixedAnswer = normalizeString(fixedCorrectAnswer);\n    // 进行比较\n    return normalizedAnswer === normalizedFixedAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "提取图中文字"
+          },
+          {
+            "type": "image",
+            "assetPath": "测试集v1/assets/imgfjztx.jpg"
+          }
+        ]
+      },
+      "assistant": []
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "接下来只输出你的最终结果，不需要任何其它多余的内容。"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-22T15:03:34.118Z",
+    "updatedAt": "2026-04-22T15:14:58.261Z",
+    "filename": "04翻转文字识别.json"
+  }
+}

@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "title": "哪个橙色圆圈比较大？",
+  "title": "我有六个鸭蛋，煮了两个，煎了两个，吃了两个，还剩几个？",
   "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "note": "直接问答对率很高，\n后面拉低通过率的",
+  "note": "标准题目是鸡蛋，\n过拟合测试\n吃两个剩四个",
   "expectedAnswer": "C",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
@@ -12,11 +12,7 @@
         "parts": [
           {
             "type": "text",
-            "text": "哪个橙色圆圈比较大？\n这与什么效应有关？"
-          },
-          {
-            "type": "image",
-            "assetPath": "测试集v1/assets/odebhs.jpg"
+            "text": "我有六个鸭蛋，煮了两个，煎了两个，吃了两个，还剩几个？"
           }
         ]
       },
@@ -32,7 +28,7 @@
         "parts": [
           {
             "type": "text",
-            "text": "上面是一道测试题，后面将交给程序自动判定结果。\n你只需要输出一个选项。\nA : 一样大\nB : 左边\nC : 右边"
+            "text": "本对话是测试题。\n下面是选项，你只需要选择一个最符合你输出的最终结果即可。\n你只需要输出选项。\nA : 0个\nB : 2个\nC : 4个\nD : 6个\nE : 还剩4个鸡蛋"
           }
         ]
       },
@@ -45,8 +41,8 @@
     }
   ],
   "metadata": {
-    "createdAt": "2026-04-19T14:36:13.360Z",
-    "updatedAt": "2026-04-22T16:02:40.846Z",
-    "filename": "03哪个橙色圆圈比较大.json"
+    "createdAt": "2026-04-22T13:28:01.844Z",
+    "updatedAt": "2026-04-22T13:30:50.452Z",
+    "filename": "14鸡蛋剩几个变体.json"
   }
 }

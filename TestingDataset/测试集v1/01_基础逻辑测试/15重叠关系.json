@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "title": "",
-  "score": 0.2,
+  "title": "俩父子钓了三条鱼，每个人都分到一条，这是咋回事？",
+  "score": 1,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "note": "随时修改，debug用\n当前问题：\n测试助手回答模式\nai回答后有表格，渲染表格检查表格问题",
+  "note": "爸爸（既是“子”又是“父”）",
   "expectedAnswer": "",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
@@ -12,25 +12,21 @@
         "parts": [
           {
             "type": "text",
-            "text": "css如何设置文本行间距?"
+            "text": "俩父子钓了三条鱼，每个人都分到一条，这是咋回事？"
           }
         ]
       },
       "assistant": [
         {
-          "mode": "continue",
-          "content": "好的"
-        },
-        {
-          "mode": "continue",
+          "mode": "generate",
           "content": ""
         }
       ]
     }
   ],
   "metadata": {
-    "createdAt": "2026-04-16T05:13:49.691Z",
-    "updatedAt": "2026-04-22T09:54:42.272Z",
-    "filename": "01临时测试.json"
+    "createdAt": "2026-04-22T17:03:24.404Z",
+    "updatedAt": "2026-04-22T17:03:49.190Z",
+    "filename": "15重叠关系.json"
   }
 }

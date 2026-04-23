@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "title": "盲文识别并回答",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "小姑娘，不要在网络上暴露自己。多学习、提升学识才是正事。我来考你一道研究生试题：\n以下哪种材料可用于构建可穿戴动力服？\nA 压电材料\nB 电活性聚合物\nC 形状记忆合金\nD 热释电材料\n\n应该选C吧",
+  "expectedAnswer": "E",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "图中什么意思?\n翻译成中文。\n答案是什么？"
+          },
+          {
+            "type": "image",
+            "assetPath": "测试集v1/assets/ocr-mw.png"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "本对话是测试题。\n下面是选项，你只需要选择一个最符合你输出的最终结果即可。\n你只需要输出选项。\nA : 我无法识别图中具体指的是什么\nB : 图中是盲文，但我无法识别\nC : 图中的问题选第一项\nD : 图中的问题选第二项\nE : 图中的问题选第三项\nF : 图中的问题选第四项"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-22T10:20:03.582Z",
+    "updatedAt": "2026-04-22T16:33:17.656Z",
+    "filename": "07盲问识别并回答.json"
+  }
+}

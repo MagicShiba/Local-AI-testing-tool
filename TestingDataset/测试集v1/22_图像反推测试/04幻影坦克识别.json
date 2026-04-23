@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "title": "幻影坦克识别",
+  "score": 1,
+  "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
+  "note": "",
+  "expectedAnswer": "E",
+  "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
+  "conversation": [
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "在图中你看到了什么？"
+          },
+          {
+            "type": "image",
+            "assetPath": "测试集v1/assets/imghytk.png"
+          },
+          {
+            "type": "image",
+            "assetPath": "测试集v1/assets/imghytkt.png"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "user": {
+        "parts": [
+          {
+            "type": "text",
+            "text": "上面是一道测试题，后面将交给程序自动判定结果。\n你只需要输出一个最符合你回答的选项。\nA : 图片内容一片混乱，呈现出叠加态，无法识别具体有什么\nB : 图1,主要内容是展示二次元少女，小女孩趴在一个人背上；图2，一棵树\nC : 图1,主要内容是蟑螂背包展示，蟑螂趴在一个人背上；图2，一辆坦克\nD : 这是一种图像处理技术，在不同背景下显示不同的图像\nE : 图1显示了二次元少女与蟑螂背包的叠加态，图2显示了坦克和树的叠加态，在图像处理技术下不同背景下显示不同"
+          }
+        ]
+      },
+      "assistant": [
+        {
+          "mode": "generate",
+          "content": ""
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-04-22T15:15:44.011Z",
+    "updatedAt": "2026-04-22T15:45:08.541Z",
+    "filename": "04幻影坦克识别.json"
+  }
+}
