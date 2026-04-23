@@ -1,6 +1,8 @@
 # 本地 AI 测试工具
 
-这是一个使用 OpenAI api 接口的本地LLM测试工具，使用 Node.js + 原生前端实现。
+这是一个使用 OpenAI api 接口的本地LLM测试工具，使用 Node.js + 原生前端实现。    
+可以创建题库，一键测试，自带的一套测试中含大量陷阱题。
+![alt text](public/src/img-test.png)
 
 ## 功能
 
@@ -15,6 +17,7 @@
   - token消耗与速度显示
 - OpenAI 接口预设管理
 
+![alt text](public/src/img-1.png)
 ## 启动
 
 1. 需要本机已有 Node.js
@@ -106,7 +109,9 @@ function checkAnswer(answer, correctAnswer) {
 }
 ```
 
-为了避免在这里写太长，复杂评分方式在笔记界面的"说明"文件中
+为了避免在这里写太长，复杂评分方式在笔记界面的"说明"文件中  
+*图中是使用检测函数插入了html来查看AI回答的如何。*
+![alt text](public/src/img-3.png)
 
 ### 元数据与思考过程
 
