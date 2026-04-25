@@ -182,7 +182,7 @@
                 </div>
                 <div class="field">
                   <label>接口地址</label>
-                  <input id="baseUrl" type="text" placeholder="https://api.openai.com/v1" />
+                  <input id="baseUrl" type="text" placeholder="http://127.0.0.1:1234/v1" />
                 </div>
                 <div class="field">
                   <label>API Key</label>
@@ -203,25 +203,15 @@
         <section class="page" id="page-compare">
           <div class="compare-page-layout">
             <aside class="sidebar compare-sidebar">
-              <div class="panel-header">
-                <h2>结果对比</h2>
-              </div>
               <div class="field">
                 <label>选择多个历史结果</label>
                 <div id="comparePageResultList" class="compare-result-checklist"></div>
               </div>
-              <div class="compare-filter-btns">
+              <div class="toolbar">
                 <button id="compareDiffAnswerBtn" type="button">只看回答差异</button>
                 <button id="compareDiffScoreBtn" type="button">只看分数差异</button>
                 <button id="compareHideSystemBtn" type="button">隐藏系统提示</button>
-              </div>
-              <div class="field">
-                <label>结果列宽度</label>
-                <input id="compareColumnWidth" type="range" min="320" max="960" step="20" value="460" />
-                <div id="compareColumnWidthValue" class="muted">460 px</div>
-              </div>
-              <div class="toolbar">
-                <button id="compareSelectAllBtn" type="button">全选当前测试集</button>
+                <button id="compareSelectAllBtn" type="button">全选</button>
                 <button id="compareClearBtn" type="button">清空选择</button>
               </div>
               <div class="field">
@@ -238,9 +228,6 @@
 
         <section class="page" id="page-testing">
           <div class="testing-header">
-            <div class="panel-header">
-              <h3>测试执行</h3>
-            </div>
             <div class="testing-controls">
               <div class="field">
                 <label>模型预设</label>
@@ -270,12 +257,12 @@
           <div class="testing-layout">
             <aside class="sidebar">
               <div class="score-summary-row">
-                <div id="scoreSummary" class="score-summary">总分：0.0 / 0.0</div>
+                <div id="scoreSummary" class="score-summary" title="得分/题目总分/参测总分 - 如果一个题目没有参与测试，题目总分计算它，参测总分不记录它。">总分：0.0/0.0</div>
                 <button id="scoreStatsBtn" type="button" class="score-stats-btn">得分统计</button>
               </div>
               <div id="scoreStatsPopover" class="score-stats-popover hidden">
                 <div class="score-stats-header">
-                  <strong>得分统计</strong>
+                  <strong>得分统计</strong><span id="scoreStatsPercent" title="得分百分比"></span>
                   <button id="closeScoreStatsBtn" type="button">关闭</button>
                 </div>
                 <div id="scoreStatsContent" class="score-stats-content"></div>
@@ -299,13 +286,13 @@
         </main>
       </div>
       <aside id="menuSidebar" class="menu-sidebar collapsed">
-        <button id="menuSidebarToggle" class="menu-sidebar-toggle" type="button" title="展开或收起菜单">»</button>
         <nav class="menu-tabs menu-tabs-side">
-          <button class="tab active" data-page="editor" title="题库编辑器"><span class="tab-icon">E</span><span class="tab-label">题库编辑器</span></button>
-          <button class="tab" data-page="testing" title="测试"><span class="tab-icon">T</span><span class="tab-label">测试</span></button>
-          <button class="tab" data-page="compare" title="对比"><span class="tab-icon">C</span><span class="tab-label">对比</span></button>
-          <button class="tab" data-page="notes" title="笔记"><span class="tab-icon">N</span><span class="tab-label">笔记</span></button>
-          <button class="tab" data-page="settings" title="设置"><span class="tab-icon">S</span><span class="tab-label">设置</span></button>
+          <button id="menuSidebarToggle" class="menu-sidebar-toggle" type="button" title="展开或收起菜单">❮≡</button>
+          <button class="tab active" data-page="editor" title="题库编辑器 - 自定义测试题目"><span class="tab-icon">⧉</span><span class="tab-label">题库编辑器</span></button>
+          <button class="tab" data-page="testing" title="测试 - 进行批量测试"><span class="tab-icon">➤</span><span class="tab-label">测试题目</span></button>
+          <button class="tab" data-page="compare" title="对比 - 比较不同模型的测试结果"><span class="tab-icon">⇌</span><span class="tab-label">结果对比</span></button>
+          <button class="tab" data-page="notes" title="笔记 - 查看说明或记录信息"><span class="tab-icon">🗒</span><span class="tab-label">笔记</span></button>
+          <button class="tab" data-page="settings" title="设置 - 配置测试API"><span class="tab-icon">⛭</span><span class="tab-label">设置</span></button>
         </nav>
       </aside>
     </div>

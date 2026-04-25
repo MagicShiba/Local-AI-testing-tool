@@ -939,11 +939,20 @@ async function readDatasetTree() {
 }
 
 async function readSettingsConfig() {
+  const defaultSettings = { presets: [], activePresetId: "" };
+  const baseSettings = await readJsonFile(SETTINGS_FILE, defaultSettings);
   const localSettings = await readJsonFile(API_SETTINGS_FILE, null);
-  if (localSettings && Array.isArray(localSettings.presets)) {
-    return localSettings;
+  if (!localSettings) return baseSettings;
+  const merged = { ...baseSettings };
+  if (localSettings.activePresetId) {
+    merged.activePresetId = localSettings.activePresetId;
   }
-  return await readJsonFile(SETTINGS_FILE, { presets: [], activePresetId: "" });
+  const basePresets = new Map((merged.presets || []).map((p) => [p.id, p]));
+  (localSettings.presets || []).forEach((p) => {
+    basePresets.set(p.id, p);
+  });
+  merged.presets = Array.from(basePresets.values());
+  return merged;
 }
 
 async function readAllNotes() {

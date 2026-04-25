@@ -22,7 +22,6 @@ const state = {
   compareResultIds: [],
   compareResults: [],
   compareSet: "",
-  compareColumnWidth: 460,
   compareQuestionCache: new Map(),
   compareSelectedPath: "",
   compareCollapsedFolders: {},
@@ -39,7 +38,6 @@ const LAST_PAGE_KEY = "lastActivePage";
 const LAST_TESTING_SET_KEY = "lastTestingSet";
 const LAST_NOTE_SORT_KEY = "lastNoteSortBy";
 const MENU_SIDEBAR_EXPANDED_KEY = "menuSidebarExpanded";
-const COMPARE_COLUMN_WIDTH_KEY = "compareColumnWidth";
 const PAGE_SCROLL_KEY_PREFIX = "pageScroll:";
 
 const els = {
@@ -76,12 +74,11 @@ const els = {
   closeScoreStatsBtn: document.getElementById("closeScoreStatsBtn"),
   scoreStatsPopover: document.getElementById("scoreStatsPopover"),
   scoreStatsContent: document.getElementById("scoreStatsContent"),
+  scoreStatsPercent: document.getElementById("scoreStatsPercent"),
   savedResultSelect: document.getElementById("savedResultSelect"),
   comparePageResultList: document.getElementById("comparePageResultList"),
   comparePageBoard: document.getElementById("comparePageBoard"),
   comparePageEmpty: document.getElementById("comparePageEmpty"),
-  compareColumnWidth: document.getElementById("compareColumnWidth"),
-  compareColumnWidthValue: document.getElementById("compareColumnWidthValue"),
   compareTree: document.getElementById("compareTree"),
   resultName: document.getElementById("resultName"),
   testingTree: document.getElementById("testingTree"),
@@ -117,10 +114,6 @@ async function init() {
     state.noteSortBy = savedNoteSortBy;
   }
   state.menuSidebarExpanded = localStorage.getItem(MENU_SIDEBAR_EXPANDED_KEY) === "1";
-  const savedCompareWidth = Number(localStorage.getItem(COMPARE_COLUMN_WIDTH_KEY) || 460);
-  if (Number.isFinite(savedCompareWidth) && savedCompareWidth >= 320) {
-    state.compareColumnWidth = savedCompareWidth;
-  }
   updateMenuSidebar();
   await Promise.all([loadTree(), loadSettings(), loadResults(), loadNotes()]);
   await syncTestingSelectors();
@@ -192,6 +185,7 @@ function bindEvents() {
   els.testingPresetSelect.addEventListener("change", () => {
     state.testingPresetId = els.testingPresetSelect.value;
   });
+  els.savedResultSelect.addEventListener("focus", loadSavedResultsIfNeeded);
   els.savedResultSelect.addEventListener("change", loadSelectedResult);
   els.comparePageResultList?.addEventListener("change", handleCompareResultChecklistChange);
   document.getElementById("compareClearBtn")?.addEventListener("click", clearCompareResults);
@@ -211,12 +205,6 @@ function bindEvents() {
   els.compareHideSystemBtn?.addEventListener("click", () => {
     state.compareFilters.hideSystemPrompt = !state.compareFilters.hideSystemPrompt;
     renderComparePage();
-  });
-  els.compareColumnWidth?.addEventListener("input", () => {
-    state.compareColumnWidth = Number(els.compareColumnWidth.value || 460);
-    localStorage.setItem(COMPARE_COLUMN_WIDTH_KEY, String(state.compareColumnWidth));
-    updateCompareColumnWidthLabel();
-    renderCompareResults();
   });
   els.scoreStatsBtn?.addEventListener("click", () => {
     updateScoreSummary();
@@ -654,7 +642,7 @@ function addRound(round = null) {
 async function loadSettings() {
   state.settings = await api("/api/settings");
   if (!state.settings.presets.length) {
-    state.settings = { activePresetId: "default", presets: [{ id: "default", name: "默认预设", model: "", baseUrl: "https://api.openai.com/v1", apiKey: "", extraConfig: "{}" }] };
+    state.settings = { activePresetId: "default", presets: [{ id: "default", name: "默认预设", model: "", baseUrl: "http://127.0.0.1:1234/v1", apiKey: "", extraConfig: "{}" }] };
   }
   renderSettings();
 }
@@ -696,7 +684,7 @@ function createPreset() {
   const name = (els.presetName.value || "").trim();
   if (!name) return;
   const id = `preset-${Date.now()}`;
-  state.settings.presets.push({ id, name, model: name, baseUrl: "https://api.openai.com/v1", apiKey: "", extraConfig: "{}" });
+  state.settings.presets.push({ id, name, model: name, baseUrl: "http://127.0.0.1:1234/v1", apiKey: "", extraConfig: "{}" });
   state.settings.activePresetId = id;
   renderSettings();
 }
@@ -1372,7 +1360,7 @@ async function refreshTestingView() {
     folderHeader.className = "testing-folder-header";
     folderHeader.dataset.folder = folderName;
     const folderStats = computeScoreStats(itemsByFolder[folderName]);
-    folderHeader.innerHTML = `<div class="testing-folder-main"><span class="testing-folder-toggle">▾</span><strong class="folder-display-name">${escapeHtml(getFolderDisplayName(folderName))}</strong><span class="testing-folder-count">(${itemsByFolder[folderName].length}题)</span></div><div class="testing-folder-actions"><button type="button" class="run-folder-btn">测试本组</button></div>`;
+    folderHeader.innerHTML = `<div class="testing-folder-main"><span class="testing-folder-toggle">▾</span><strong class="folder-display-name">${escapeHtml(getFolderDisplayName(folderName))}</strong><span class="testing-folder-count">(${itemsByFolder[folderName].length}题)</span></div><div class="testing-folder-score">得分:${formatScore(folderStats.earned)} / ${formatScore(folderStats.total)} / ${formatScore(folderStats.measuredTotal)}</div><div class="testing-folder-actions"><button type="button" class="run-folder-btn">测试本组</button></div>`;
     folderHeader.addEventListener("click", () => {
       folderHeader.classList.toggle("collapsed");
       const toggle = folderHeader.querySelector(".testing-folder-toggle");
@@ -1414,7 +1402,11 @@ async function refreshTestingView() {
 
 function updateScoreSummary() {
   const summary = computeScoreStats(state.testingItems);
-  els.scoreSummary.textContent = `总分：${formatScore(summary.earned)} / ${formatScore(summary.total)} / ${formatScore(summary.measuredTotal)}`;
+  els.scoreSummary.textContent = `总分: ${formatScore(summary.earned)}/${formatScore(summary.total)}/${formatScore(summary.measuredTotal)}`;
+  if (els.scoreStatsPercent) {
+    const percent = summary.measuredTotal > 0 ? ((summary.measuredEarned / summary.measuredTotal) * 100).toFixed(1) : "0.0";
+    els.scoreStatsPercent.textContent = `${percent}`;
+  }
   renderScoreStatsPanel();
 }
 
@@ -1493,7 +1485,20 @@ async function loadResults() {
     option.textContent = item.name || item.id;
     els.savedResultSelect.appendChild(option);
   });
-  renderCompareResultOptions();
+}
+
+async function loadResultsIfNeeded() {
+  if (state.availableResults.length === 0) {
+    await loadResults();
+    renderCompareResultOptions();
+  }
+}
+
+async function loadSavedResultsIfNeeded() {
+  if (!els.savedResultSelect.dataset.loaded) {
+    await loadResults();
+    els.savedResultSelect.dataset.loaded = "1";
+  }
 }
 
 function renderCompareResultOptions() {
@@ -1505,7 +1510,7 @@ function renderCompareResultOptions() {
     label.className = "compare-result-option";
     const checked = selectedIds.has(item.id) ? "checked" : "";
     const createdAt = item.createdAt ? new Date(item.createdAt).toLocaleString("zh-CN") : "";
-    label.innerHTML = `<input type="checkbox" value="${escapeHtml(item.id)}" ${checked} /><span class="compare-result-option-text"><span class="compare-result-option-name">${escapeHtml(item.name || item.id)}</span><span class="compare-result-option-meta">${escapeHtml(createdAt)}</span></span>`;
+    label.innerHTML = `<div class="checkbox-wrapper"><input type="checkbox" value="${escapeHtml(item.id)}" ${checked} /></div><span class="compare-result-option-text"><span class="compare-result-option-name">${escapeHtml(item.name || item.id)}</span><span class="compare-result-option-meta">${escapeHtml(createdAt)}</span></span>`;
     els.comparePageResultList.appendChild(label);
   });
 }
@@ -1550,16 +1555,10 @@ function getAvailableCompareResults() {
   return state.availableResults.filter((item) => !state.compareSet || item.dataset === state.compareSet);
 }
 
-function updateCompareColumnWidthLabel() {
-  if (!els.compareColumnWidthValue || !els.compareColumnWidth) return;
-  els.compareColumnWidthValue.textContent = `${state.compareColumnWidth} px`;
-  els.compareColumnWidth.value = String(state.compareColumnWidth);
-}
-
 function renderComparePage() {
   state.compareSet = state.testingSet || state.compareSet || state.tree.sets[0]?.name || "";
-  updateCompareColumnWidthLabel();
   updateCompareFilterButtons();
+  loadResultsIfNeeded();
   renderCompareResultOptions();
   renderCompareTree();
   renderCompareResults();
@@ -1676,7 +1675,6 @@ async function renderCompareResults() {
   }
   empty.classList.add("hidden");
   board.classList.remove("hidden");
-  board.style.setProperty("--compare-column-width", `${state.compareColumnWidth}px`);
   board.style.setProperty("--compare-result-count", String(Math.max(1, state.compareResults.length)));
 
   const set = getCompareSet();
@@ -1695,7 +1693,30 @@ async function renderCompareResults() {
       manualScore: item.manualScore ?? null,
       result: item.result || null,
     })));
-    cell.innerHTML = `<div class="compare-result-name">${escapeHtml(result.name || result.id || "未命名结果")}</div><div class="compare-result-meta">${escapeHtml(modelName)}${createdAt ? ` · ${escapeHtml(createdAt)}` : ""}</div><div class="compare-result-meta">总分 ${formatScore(stats.earned)} / ${formatScore(stats.total)} / ${formatScore(stats.measuredTotal)}</div>`;
+    let totalTokens = 0;
+    let totalDuration = 0;
+    (result.items || []).forEach((item) => {
+      if (item.result?.transcript) {
+        item.result.transcript.forEach((round) => {
+          if (round.response?.usage) {
+            totalTokens += (round.response.usage.total_tokens || round.response.usage.completion_tokens || 0);
+          }
+          if (round._duration) {
+            totalDuration += round._duration;
+          }
+        });
+      }
+    });
+    const metaInfo = [];
+    metaInfo.push(`总分${formatScore(stats.earned)}/${formatScore(stats.total)}/${formatScore(stats.measuredTotal)}`);
+    if (totalTokens > 0) {
+      metaInfo.push(`tokens${totalTokens.toLocaleString()}`);
+      if (totalDuration > 0) {
+        metaInfo.push(`耗时${(totalDuration / 1000).toFixed(1)}s`);
+        metaInfo.push(`速度${(totalTokens / (totalDuration / 1000)).toFixed(1)}t/s`);
+      }
+    }
+    cell.innerHTML = `<div class="compare-result-name">${escapeHtml(result.name || result.id || "未命名结果")}</div><div class="compare-result-meta">${escapeHtml(modelName)} ${metaInfo.join(" ")}</div>`;
     header.appendChild(cell);
   });
   const refCell = document.createElement("div");
@@ -1730,7 +1751,7 @@ async function renderCompareResults() {
       }));
       return `${escapeHtml(result.name || result.id || "未命名")} ${formatScore(stat.earned)}/${formatScore(stat.total)}/${formatScore(stat.measuredTotal)}`;
     }).join(" | ");
-    folderHeader.innerHTML = `<div class="testing-folder-main"><span class="testing-folder-toggle">${state.compareCollapsedFolders[folder.name] ? "▸" : "▾"}</span><strong class="folder-display-name">${escapeHtml(getFolderDisplayName(folder.name))}</strong><span class="testing-folder-count">(${visibleQuestions.length}题)</span></div><div class="testing-folder-score">${folderStatsText}</div><div class="testing-folder-actions"><span class="muted">点击折叠本组全部结果</span></div>`;
+    folderHeader.innerHTML = `<div class="testing-folder-main"><span class="testing-folder-toggle">${state.compareCollapsedFolders[folder.name] ? "▸" : "▾"}</span><strong class="folder-display-name">${escapeHtml(getFolderDisplayName(folder.name))}</strong><span class="testing-folder-count">(${visibleQuestions.length}题)</span></div><div class="testing-folder-score">${folderStatsText}`;
     folderHeader.addEventListener("click", () => {
       state.compareCollapsedFolders[folder.name] = !state.compareCollapsedFolders[folder.name];
       renderComparePage();
@@ -1747,7 +1768,7 @@ async function renderCompareResults() {
       questionWrap.dataset.path = questionInfo.path;
       const questionHeader = document.createElement("div");
       questionHeader.className = `compare-question-toggle${state.compareSelectedPath === questionInfo.path ? " selected" : ""}`;
-      questionHeader.innerHTML = `<div class="test-header"><div class="test-title">${escapeHtml(questionInfo.title)}</div><div class="score-badge">${formatScore(questionInfo.score)}分</div><div class="test-meta">${escapeHtml(questionInfo.fileName)}</div><div class="run-stats">点击折叠本题全部结果</div></div>`;
+      questionHeader.innerHTML = `<div class="test-header"><div class="test-title">${escapeHtml(questionInfo.title)}</div><div class="score-badge">${formatScore(questionInfo.score)}分</div></div>`;
       questionHeader.addEventListener("click", () => {
         state.compareSelectedPath = questionInfo.path;
         state.compareCollapsedQuestions[questionInfo.path] = !state.compareCollapsedQuestions[questionInfo.path];
@@ -1784,17 +1805,18 @@ function renderCompareResultColumn(result, item, questionInfo) {
     cell.innerHTML = `<div class="compare-no-result">未测试</div>`;
     return cell;
   }
-  const card = document.createElement("div");
-  card.className = `test-card compare-test-card ${getTestStatusClass({
+  const statusClass = getTestStatusClass({
     score: questionInfo.score,
     manualScore: item.manualScore ?? null,
     result: item.result || null,
-  })}`;
+  });
+  const card = document.createElement("div");
+  card.className = `test-card compare-test-card ${statusClass}`;
   const score = Number(item.manualScore ?? item.result?.score?.earned ?? 0);
   const total = Number(item.score ?? item.result?.score?.total ?? questionInfo.score ?? 0);
   const header = document.createElement("div");
-  header.className = "compare-test-card-header";
-  header.innerHTML = `<div><div class="compare-card-title">${escapeHtml(questionInfo.title)}</div><div class="run-stats">${escapeHtml(result.name || result.id || "未命名结果")}</div><div class="run-stats">${getRunStat(item.result) || "无统计"}</div></div><div class="score-badge">${formatScore(score)} / ${formatScore(total)}</div>`;
+  header.className = `compare-test-card-header ${statusClass}`;
+  header.innerHTML = `<div><div class="run-stats">${getRunStat(item.result).replace(/<br\s*\/?>/gi, ' ') || "无统计"}</div></div><div class="score-badge">${formatScore(score)} / ${formatScore(total)}</div>`;
   const body = document.createElement("div");
   body.className = "compare-test-card-body";
   card.appendChild(header);
@@ -1975,9 +1997,9 @@ function getRunStat(result) {
   stats.push(`tokens: ${totalCompletionTokens}`);
   if (totalDuration > 0) {
     const secs = (totalDuration / 1000).toFixed(1);
-    stats.push(`耗时: ${secs} s`);
+    stats.push(`耗时:${secs} s`);
     const ts = (totalCompletionTokens / (totalDuration / 1000)).toFixed(1);
-    stats.push(`速度: ${ts} t/s`);
+    stats.push(`速度:${ts} t/s`);
   }
   return stats.join("<br>");
 }
