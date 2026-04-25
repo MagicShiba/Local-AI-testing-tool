@@ -564,7 +564,7 @@ function refreshImagePreview(wrap) {
 function createAssistantEditor(item) {
   const wrap = document.createElement("div");
   wrap.className = "assistant-card";
-  wrap.innerHTML = `<div class="inline-grid"><div class="field"><label>助手回答模式</label><select class="assistant-mode"><option value="generate">留空时由模型生成</option><option value="seed">视作已有助手回答</option><option value="continue">作为助手续写上下文</option></select></div><div></div><div class="field buttons"><button type="button" class="removeAssistantBtn">删除</button></div></div><div class="field"><label>助手回答内容</label><textarea class="assistant-content" rows="1"></textarea></div>`;
+  wrap.innerHTML = `<div class="inline-grid"><div class="field"><label>助手回答内容</label><textarea class="assistant-content" rows="2"></textarea></div><div class="field"><label>助手回答模式</label><select class="assistant-mode"><option value="generate">留空时由模型生成</option><option value="seed">视作已有助手回答</option><option value="continue">作为助手续写上下文</option></select></div></div><div class="field buttons"><button type="button" class="removeAssistantBtn">删除</button></div>`;
   wrap.querySelector(".assistant-mode").value = item.mode || "generate";
   wrap.querySelector(".assistant-content").value = item.content || "";
   wrap.querySelector(".removeAssistantBtn").addEventListener("click", () => wrap.remove());
@@ -1627,7 +1627,7 @@ function scrollToCompareQuestion(path) {
   const row = els.comparePageBoard?.querySelector(`.compare-question-wrap[data-path="${cssEscape(path)}"]`);
   if (!row) return;
   const topbarHeight = document.querySelector(".topbar")?.offsetHeight || 60;
-  const y = row.getBoundingClientRect().top + window.scrollY - topbarHeight - 8;
+  const y = row.getBoundingClientRect().top + window.scrollY - topbarHeight - 50;
   window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
 }
 
