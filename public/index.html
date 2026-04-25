@@ -8,25 +8,20 @@
     <link rel="stylesheet" href="/lib/github.min.css" />
   </head>
   <body>
-    <div id="app">
-      <header class="topbar">
-        <div>
-          <h1>本地AI测试工具</h1>
-          <p>题库编辑、OpenAI API 设置与批量测试</p>
-        </div>
-<div class="editor-set-select hidden">
+    <div id="app" class="app-shell">
+      <div class="app-main">
+        <header class="topbar">
+          <div>
+            <h1>本地AI测试工具</h1>
+            <p>题库编辑、OpenAI API 设置与批量测试</p>
+          </div>
+          <div class="editor-set-select hidden">
             <label>测试集</label>
             <select id="testingSetSelect"></select>
- 		</div>
-        <nav class="menu-tabs">
-          <button class="tab active" data-page="editor">题库编辑器</button>
-          <button class="tab" data-page="testing">测试</button>
-          <button class="tab" data-page="notes">笔记</button>
-          <button class="tab" data-page="settings">设置</button>
-        </nav>
-      </header>
+          </div>
+        </header>
 
-      <main>
+        <main>
   <div id="modal-overlay" class="modal-overlay">
     <div class="modal-content">
       <button class="modal-close" onclick="document.getElementById('modal-overlay').style.display='none'">&times;</button>
@@ -166,6 +161,7 @@
                 <button id="saveSettingsBtn">保存设置</button>
               </div>
             </div>
+            <div class="muted">当前设置会优先写入本地 `api-settings.local.json`，`settings.json` 保留作示例配置。</div>
 
             <div class="settings-layout">
               <div class="settings-side">
@@ -201,6 +197,42 @@
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-compare">
+          <div class="compare-page-layout">
+            <aside class="sidebar compare-sidebar">
+              <div class="panel-header">
+                <h2>结果对比</h2>
+              </div>
+              <div class="field">
+                <label>选择多个历史结果</label>
+                <div id="comparePageResultList" class="compare-result-checklist"></div>
+              </div>
+              <div class="compare-filter-btns">
+                <button id="compareDiffAnswerBtn" type="button">只看回答差异</button>
+                <button id="compareDiffScoreBtn" type="button">只看分数差异</button>
+                <button id="compareHideSystemBtn" type="button">隐藏系统提示</button>
+              </div>
+              <div class="field">
+                <label>结果列宽度</label>
+                <input id="compareColumnWidth" type="range" min="320" max="960" step="20" value="460" />
+                <div id="compareColumnWidthValue" class="muted">460 px</div>
+              </div>
+              <div class="toolbar">
+                <button id="compareSelectAllBtn" type="button">全选当前测试集</button>
+                <button id="compareClearBtn" type="button">清空选择</button>
+              </div>
+              <div class="field">
+                <label>题目目录</label>
+                <div id="compareTree" class="testing-tree"></div>
+              </div>
+            </aside>
+            <section class="single-panel compare-page-main">
+              <div id="comparePageEmpty" class="empty-state">选择同一测试集下的多个历史结果后，将按题目完整并排对比。</div>
+              <div id="comparePageBoard" class="compare-board hidden"></div>
+            </section>
           </div>
         </section>
 
@@ -264,7 +296,18 @@
             </section>
           </div>
         </section>
-      </main>
+        </main>
+      </div>
+      <aside id="menuSidebar" class="menu-sidebar collapsed">
+        <button id="menuSidebarToggle" class="menu-sidebar-toggle" type="button" title="展开或收起菜单">»</button>
+        <nav class="menu-tabs menu-tabs-side">
+          <button class="tab active" data-page="editor" title="题库编辑器"><span class="tab-icon">E</span><span class="tab-label">题库编辑器</span></button>
+          <button class="tab" data-page="testing" title="测试"><span class="tab-icon">T</span><span class="tab-label">测试</span></button>
+          <button class="tab" data-page="compare" title="对比"><span class="tab-icon">C</span><span class="tab-label">对比</span></button>
+          <button class="tab" data-page="notes" title="笔记"><span class="tab-icon">N</span><span class="tab-label">笔记</span></button>
+          <button class="tab" data-page="settings" title="设置"><span class="tab-icon">S</span><span class="tab-label">设置</span></button>
+        </nav>
+      </aside>
     </div>
     <div id="toastContainer" class="toast-container"></div>
 

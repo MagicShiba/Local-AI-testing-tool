@@ -17,12 +17,29 @@ const state = {
   noteViewMode: "markdown",
   noteSortBy: "name",
   pendingTestingFocusPath: "",
+  menuSidebarExpanded: false,
+  availableResults: [],
+  compareResultIds: [],
+  compareResults: [],
+  compareSet: "",
+  compareColumnWidth: 460,
+  compareQuestionCache: new Map(),
+  compareSelectedPath: "",
+  compareCollapsedFolders: {},
+  compareCollapsedQuestions: {},
+  compareFilters: {
+    differentAnswerOnly: false,
+    differentScoreOnly: false,
+    hideSystemPrompt: false,
+  },
 };
 
 const DEBUG_TEST_FLOW = false;
 const LAST_PAGE_KEY = "lastActivePage";
 const LAST_TESTING_SET_KEY = "lastTestingSet";
 const LAST_NOTE_SORT_KEY = "lastNoteSortBy";
+const MENU_SIDEBAR_EXPANDED_KEY = "menuSidebarExpanded";
+const COMPARE_COLUMN_WIDTH_KEY = "compareColumnWidth";
 const PAGE_SCROLL_KEY_PREFIX = "pageScroll:";
 
 const els = {
@@ -60,6 +77,12 @@ const els = {
   scoreStatsPopover: document.getElementById("scoreStatsPopover"),
   scoreStatsContent: document.getElementById("scoreStatsContent"),
   savedResultSelect: document.getElementById("savedResultSelect"),
+  comparePageResultList: document.getElementById("comparePageResultList"),
+  comparePageBoard: document.getElementById("comparePageBoard"),
+  comparePageEmpty: document.getElementById("comparePageEmpty"),
+  compareColumnWidth: document.getElementById("compareColumnWidth"),
+  compareColumnWidthValue: document.getElementById("compareColumnWidthValue"),
+  compareTree: document.getElementById("compareTree"),
   resultName: document.getElementById("resultName"),
   testingTree: document.getElementById("testingTree"),
   collapseAllFloatBtn: document.getElementById("collapseAllFloatBtn"),
@@ -72,6 +95,11 @@ const els = {
   noteContent: document.getElementById("noteContent"),
   notePreview: document.getElementById("notePreview"),
   toastContainer: document.getElementById("toastContainer"),
+  menuSidebar: document.getElementById("menuSidebar"),
+  menuSidebarToggle: document.getElementById("menuSidebarToggle"),
+  compareDiffAnswerBtn: document.getElementById("compareDiffAnswerBtn"),
+  compareDiffScoreBtn: document.getElementById("compareDiffScoreBtn"),
+  compareHideSystemBtn: document.getElementById("compareHideSystemBtn"),
 };
 
 document.addEventListener("DOMContentLoaded", init);
@@ -88,6 +116,12 @@ async function init() {
   if (savedNoteSortBy === "name" || savedNoteSortBy === "time") {
     state.noteSortBy = savedNoteSortBy;
   }
+  state.menuSidebarExpanded = localStorage.getItem(MENU_SIDEBAR_EXPANDED_KEY) === "1";
+  const savedCompareWidth = Number(localStorage.getItem(COMPARE_COLUMN_WIDTH_KEY) || 460);
+  if (Number.isFinite(savedCompareWidth) && savedCompareWidth >= 320) {
+    state.compareColumnWidth = savedCompareWidth;
+  }
+  updateMenuSidebar();
   await Promise.all([loadTree(), loadSettings(), loadResults(), loadNotes()]);
   await syncTestingSelectors();
   renderEditor();
@@ -117,6 +151,7 @@ function bindEvents() {
   document.getElementById("sortByTimeBtn").addEventListener("click", () => setNoteSortBy("time"));
   els.testingSetSelect.addEventListener("change", () => {
     state.testingSet = els.testingSetSelect.value;
+    state.compareSet = state.testingSet;
     localStorage.setItem(LAST_TESTING_SET_KEY, state.testingSet);
     const currentPage = localStorage.getItem(LAST_PAGE_KEY);
     if (currentPage === "editor") {
@@ -124,6 +159,14 @@ function bindEvents() {
     } else if (currentPage === "testing") {
       state.testingSelectedPath = "";
       renderTestingList();
+    } else if (currentPage === "compare") {
+      state.compareResultIds = state.compareResultIds.filter((id) => {
+        const result = state.availableResults.find((item) => item.id === id);
+        return result?.dataset === state.compareSet;
+      });
+      state.compareResults = state.compareResults.filter((result) => result.dataset === state.compareSet && state.compareResultIds.includes(result.id));
+      renderComparePage();
+      loadCompareResults();
     }
   });
   els.saveQuestionBtn.addEventListener("click", () => saveQuestion({ showToast: true }));
@@ -143,12 +186,38 @@ function bindEvents() {
   els.collapseAllFloatBtn.addEventListener("click", () => toggleAllTests(false));
   els.scrollTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
   els.stopTestBtn.addEventListener("click", stopAllTests);
+  els.menuSidebarToggle?.addEventListener("click", toggleMenuSidebar);
   document.addEventListener("click", handleDocumentClick);
   document.addEventListener("click", handleCheckerActionClick);
   els.testingPresetSelect.addEventListener("change", () => {
     state.testingPresetId = els.testingPresetSelect.value;
   });
   els.savedResultSelect.addEventListener("change", loadSelectedResult);
+  els.comparePageResultList?.addEventListener("change", handleCompareResultChecklistChange);
+  document.getElementById("compareClearBtn")?.addEventListener("click", clearCompareResults);
+  document.getElementById("compareSelectAllBtn")?.addEventListener("click", async () => {
+    state.compareResultIds = getAvailableCompareResults().map((item) => item.id);
+    renderCompareResultOptions();
+    await loadCompareResults();
+  });
+  els.compareDiffAnswerBtn?.addEventListener("click", () => {
+    state.compareFilters.differentAnswerOnly = !state.compareFilters.differentAnswerOnly;
+    renderComparePage();
+  });
+  els.compareDiffScoreBtn?.addEventListener("click", () => {
+    state.compareFilters.differentScoreOnly = !state.compareFilters.differentScoreOnly;
+    renderComparePage();
+  });
+  els.compareHideSystemBtn?.addEventListener("click", () => {
+    state.compareFilters.hideSystemPrompt = !state.compareFilters.hideSystemPrompt;
+    renderComparePage();
+  });
+  els.compareColumnWidth?.addEventListener("input", () => {
+    state.compareColumnWidth = Number(els.compareColumnWidth.value || 460);
+    localStorage.setItem(COMPARE_COLUMN_WIDTH_KEY, String(state.compareColumnWidth));
+    updateCompareColumnWidthLabel();
+    renderCompareResults();
+  });
   els.scoreStatsBtn?.addEventListener("click", () => {
     updateScoreSummary();
     els.scoreStatsPopover?.classList.toggle("hidden");
@@ -209,14 +278,28 @@ function switchPage(page, options = {}) {
     renderEditorTree();
   } else if (page === "testing") {
     renderTestingList();
+  } else if (page === "compare") {
+    renderComparePage();
   }
   restorePageScroll(page, immediateScrollRestore);
+}
+
+function updateMenuSidebar() {
+  if (!els.menuSidebar) return;
+  els.menuSidebar.classList.toggle("expanded", state.menuSidebarExpanded);
+  els.menuSidebar.classList.toggle("collapsed", !state.menuSidebarExpanded);
+}
+
+function toggleMenuSidebar() {
+  state.menuSidebarExpanded = !state.menuSidebarExpanded;
+  localStorage.setItem(MENU_SIDEBAR_EXPANDED_KEY, state.menuSidebarExpanded ? "1" : "0");
+  updateMenuSidebar();
 }
 
 function updateEditorSetSelectVisibility(page) {
   const editorSetSelectEl = document.querySelector(".editor-set-select");
   if (!editorSetSelectEl) return;
-  if (page === "editor" || page === "testing") {
+  if (page === "editor" || page === "testing" || page === "compare") {
     editorSetSelectEl.classList.remove("hidden");
   } else {
     editorSetSelectEl.classList.add("hidden");
@@ -640,6 +723,7 @@ async function saveSettings() {
 async function syncTestingSelectors() {
   const savedSet = localStorage.getItem(LAST_TESTING_SET_KEY);
   state.testingSet = state.testingSet || savedSet || state.tree.sets[0]?.name || "";
+  state.compareSet = state.compareSet || state.testingSet || state.tree.sets[0]?.name || "";
   els.testingSetSelect.innerHTML = "";
   state.tree.sets.forEach((set) => {
     const option = document.createElement("option");
@@ -656,8 +740,12 @@ async function syncTestingSelectors() {
     state.testingSet = state.tree.sets[0]?.name || "";
     els.testingSetSelect.value = state.testingSet;
   }
+  if (!state.tree.sets.some((set) => set.name === state.compareSet)) {
+    state.compareSet = state.tree.sets[0]?.name || "";
+  }
   if (!state.testingPresetId) state.testingPresetId = state.settings.activePresetId || state.settings.presets[0]?.id || "";
   await renderTestingList();
+  renderComparePage();
 }
 
 async function renderTestingList() {
@@ -698,6 +786,9 @@ async function createTestingCard(item) {
   details.open = Boolean(item.open);
   details.addEventListener("toggle", () => {
     item.open = details.open;
+    if (!details.open) {
+      requestAnimationFrame(() => scrollCardBelowFolderHeader(details));
+    }
   });
   details.addEventListener("click", (e) => {
     if (e.target.closest("button") || e.target.closest("input") || e.target.closest("textarea")) return;
@@ -758,18 +849,7 @@ async function renderQuestionConversation(item, targetEl) {
   if (!item.question) {
     item.question = (await api(`/api/question?path=${encodeURIComponent(item.path)}`)).content;
   }
-  const transcript = item.result?.transcript;
-  targetEl.innerHTML = "";
-
-  const hasSystemInTranscript = transcript?.some(e => e.role === "system");
-  if (item.question.systemPrompt && !hasSystemInTranscript) {
-    targetEl.appendChild(renderMessageBubble("system", item.question.systemPrompt));
-  }
-
-  const draftTranscript = buildDraftTranscript(item.question);
-  const mergedTranscript = mergeTranscriptWithDraft(transcript, draftTranscript);
-  
-  mergedTranscript.forEach((entry, index) => targetEl.appendChild(renderTranscriptEntry(entry, index, mergedTranscript, state.isLoadingResult, item.question)));
+  renderConversationContent(item.question, item.result?.transcript, targetEl, { isLoadedResult: state.isLoadingResult });
 
   const followWrap = document.createElement("details");
   followWrap.className = "drawer";
@@ -785,6 +865,31 @@ async function renderQuestionConversation(item, targetEl) {
     await runSingleTest(item.path);
   });
   targetEl.appendChild(followWrap);
+}
+
+function renderConversationContent(question, transcript, targetEl, options = {}) {
+  targetEl.innerHTML = "";
+  const hasSystemInTranscript = transcript?.some((e) => e.role === "system");
+  if (!options.hideSystemPrompt && question?.systemPrompt && !hasSystemInTranscript) {
+    targetEl.appendChild(renderMessageBubble("system", question.systemPrompt));
+  }
+  const draftTranscript = buildDraftTranscript(question || {});
+  const mergedTranscript = mergeTranscriptWithDraft(transcript, draftTranscript).filter((entry) => !options.hideSystemPrompt || entry.role !== "system");
+  mergedTranscript.forEach((entry, index) => {
+    targetEl.appendChild(renderTranscriptEntry(entry, index, mergedTranscript, Boolean(options.isLoadedResult), question));
+  });
+}
+
+async function ensureCompareQuestion(path) {
+  if (!state.compareQuestionCache.has(path)) {
+    state.compareQuestionCache.set(path, api(`/api/question?path=${encodeURIComponent(path)}`).then((payload) => payload.content));
+  }
+  return await state.compareQuestionCache.get(path);
+}
+
+async function renderCompareConversation(item, questionInfo, targetEl, options = {}) {
+  const question = await ensureCompareQuestion(questionInfo.path);
+  renderConversationContent(question, item.result?.transcript, targetEl, { isLoadedResult: true, hideSystemPrompt: Boolean(options.hideSystemPrompt) });
 }
 
 function mergeTranscriptWithDraft(transcript, draft) {
@@ -1265,8 +1370,9 @@ async function refreshTestingView() {
   for (const folderName of folderOrder) {
     const folderHeader = document.createElement("div");
     folderHeader.className = "testing-folder-header";
+    folderHeader.dataset.folder = folderName;
     const folderStats = computeScoreStats(itemsByFolder[folderName]);
-    folderHeader.innerHTML = `<div class="testing-folder-main"><span class="testing-folder-toggle">▾</span><strong>${escapeHtml(folderName)}</strong><span class="testing-folder-count">(${itemsByFolder[folderName].length}题)</span></div><div class="testing-folder-score">得分:${formatScore(folderStats.earned)} / ${formatScore(folderStats.total)}</div><div class="testing-folder-actions"><button type="button" class="run-folder-btn">测试本组</button></div>`;
+    folderHeader.innerHTML = `<div class="testing-folder-main"><span class="testing-folder-toggle">▾</span><strong class="folder-display-name">${escapeHtml(getFolderDisplayName(folderName))}</strong><span class="testing-folder-count">(${itemsByFolder[folderName].length}题)</span></div><div class="testing-folder-actions"><button type="button" class="run-folder-btn">测试本组</button></div>`;
     folderHeader.addEventListener("click", () => {
       folderHeader.classList.toggle("collapsed");
       const toggle = folderHeader.querySelector(".testing-folder-toggle");
@@ -1308,7 +1414,7 @@ async function refreshTestingView() {
 
 function updateScoreSummary() {
   const summary = computeScoreStats(state.testingItems);
-  els.scoreSummary.textContent = `总分：${formatScore(summary.earned)} / ${formatScore(summary.total)}`;
+  els.scoreSummary.textContent = `总分：${formatScore(summary.earned)} / ${formatScore(summary.total)} / ${formatScore(summary.measuredTotal)}`;
   renderScoreStatsPanel();
 }
 
@@ -1317,7 +1423,7 @@ function toggleAllTests(expanded) {
     header.classList.toggle("collapsed", !expanded);
     const toggle = header.querySelector(".testing-folder-toggle");
     toggle.textContent = expanded ? "▾" : "▸";
-    const folderName = header.querySelector("strong")?.textContent;
+    const folderName = header.dataset.folder || "";
     const folderBody = document.querySelector(`.testing-folder-body[data-folder="${cssEscape(folderName)}"]`);
     if (folderBody) folderBody.classList.toggle("hidden", !expanded);
   });
@@ -1379,6 +1485,7 @@ async function saveResult() {
 
 async function loadResults() {
   const results = await api("/api/results");
+  state.availableResults = results;
   els.savedResultSelect.innerHTML = `<option value="">选择一个结果</option>`;
   results.forEach((item) => {
     const option = document.createElement("option");
@@ -1386,6 +1493,315 @@ async function loadResults() {
     option.textContent = item.name || item.id;
     els.savedResultSelect.appendChild(option);
   });
+  renderCompareResultOptions();
+}
+
+function renderCompareResultOptions() {
+  if (!els.comparePageResultList) return;
+  const selectedIds = new Set(state.compareResultIds);
+  els.comparePageResultList.innerHTML = "";
+  getAvailableCompareResults().forEach((item) => {
+    const label = document.createElement("label");
+    label.className = "compare-result-option";
+    const checked = selectedIds.has(item.id) ? "checked" : "";
+    const createdAt = item.createdAt ? new Date(item.createdAt).toLocaleString("zh-CN") : "";
+    label.innerHTML = `<input type="checkbox" value="${escapeHtml(item.id)}" ${checked} /><span class="compare-result-option-text"><span class="compare-result-option-name">${escapeHtml(item.name || item.id)}</span><span class="compare-result-option-meta">${escapeHtml(createdAt)}</span></span>`;
+    els.comparePageResultList.appendChild(label);
+  });
+}
+
+function handleCompareResultChecklistChange(event) {
+  const target = event.target;
+  if (!target || target.type !== "checkbox") return;
+  const id = target.value;
+  if (target.checked) {
+    state.compareResultIds = [...state.compareResultIds.filter((item) => item !== id), id];
+  } else {
+    state.compareResultIds = state.compareResultIds.filter((item) => item !== id);
+  }
+  loadCompareResults();
+}
+
+async function loadCompareResults() {
+  if (!els.comparePageResultList) return;
+  const ids = state.compareResultIds.filter(Boolean);
+  if (!ids.length) {
+    state.compareResults = [];
+    renderCompareResults();
+    return;
+  }
+  const results = await Promise.all(ids.map((id) => api(`/api/result?id=${encodeURIComponent(id)}`)));
+  state.compareResults = results;
+  renderCompareResults();
+}
+
+function clearCompareResults() {
+  state.compareResultIds = [];
+  state.compareResults = [];
+  if (els.comparePageResultList) {
+    [...els.comparePageResultList.querySelectorAll('input[type="checkbox"]')].forEach((input) => {
+      input.checked = false;
+    });
+  }
+  renderCompareResults();
+}
+
+function getAvailableCompareResults() {
+  return state.availableResults.filter((item) => !state.compareSet || item.dataset === state.compareSet);
+}
+
+function updateCompareColumnWidthLabel() {
+  if (!els.compareColumnWidthValue || !els.compareColumnWidth) return;
+  els.compareColumnWidthValue.textContent = `${state.compareColumnWidth} px`;
+  els.compareColumnWidth.value = String(state.compareColumnWidth);
+}
+
+function renderComparePage() {
+  state.compareSet = state.testingSet || state.compareSet || state.tree.sets[0]?.name || "";
+  updateCompareColumnWidthLabel();
+  updateCompareFilterButtons();
+  renderCompareResultOptions();
+  renderCompareTree();
+  renderCompareResults();
+}
+
+function updateCompareFilterButtons() {
+  els.compareDiffAnswerBtn?.classList.toggle("active", state.compareFilters.differentAnswerOnly);
+  els.compareDiffScoreBtn?.classList.toggle("active", state.compareFilters.differentScoreOnly);
+  els.compareHideSystemBtn?.classList.toggle("active", state.compareFilters.hideSystemPrompt);
+}
+
+function getCompareSet() {
+  return state.tree.sets.find((item) => item.name === state.compareSet);
+}
+
+function renderCompareTree() {
+  if (!els.compareTree) return;
+  els.compareTree.innerHTML = "";
+  const set = getCompareSet();
+  if (!set) return;
+  set.folders.forEach((folder) => {
+    const folderEl = document.createElement("div");
+    folderEl.className = `tree-folder${state.compareCollapsedFolders[folder.name] ? " collapsed" : ""}`;
+    folderEl.innerHTML = `<div class="tree-folder-header"><span class="tree-folder-toggle">${state.compareCollapsedFolders[folder.name] ? "▸" : "▾"}</span><strong class="folder-display-name">${escapeHtml(getFolderDisplayName(folder.name))}</strong></div>`;
+    const header = folderEl.querySelector(".tree-folder-header");
+    const toggle = folderEl.querySelector(".tree-folder-toggle");
+    header.addEventListener("click", () => {
+      const collapsed = !state.compareCollapsedFolders[folder.name];
+      state.compareCollapsedFolders[folder.name] = collapsed;
+      folderEl.classList.toggle("collapsed", collapsed);
+      toggle.textContent = collapsed ? "▸" : "▾";
+      renderCompareResults();
+    });
+    folder.questions.forEach((question) => {
+      const qEl = document.createElement("div");
+      qEl.className = `tree-question${state.compareSelectedPath === question.path ? " active" : ""}`;
+      qEl.dataset.path = question.path;
+      qEl.innerHTML = `<div>${escapeHtml(question.title || question.name)}</div>`;
+      qEl.addEventListener("click", () => {
+        state.compareSelectedPath = question.path;
+        highlightCompareTree();
+        ensureCompareFolderExpanded(folder.name);
+        state.compareCollapsedQuestions[question.path] = false;
+        renderCompareResults();
+        requestAnimationFrame(() => scrollToCompareQuestion(question.path));
+      });
+      folderEl.appendChild(qEl);
+    });
+    els.compareTree.appendChild(folderEl);
+  });
+  highlightCompareTree();
+}
+
+function highlightCompareTree() {
+  if (!els.compareTree) return;
+  [...els.compareTree.querySelectorAll(".tree-question")].forEach((node) => {
+    node.classList.toggle("active", node.dataset.path === state.compareSelectedPath);
+  });
+}
+
+function ensureCompareFolderExpanded(folderName) {
+  state.compareCollapsedFolders[folderName] = false;
+}
+
+function scrollToCompareQuestion(path) {
+  const row = els.comparePageBoard?.querySelector(`.compare-question-wrap[data-path="${cssEscape(path)}"]`);
+  if (!row) return;
+  const topbarHeight = document.querySelector(".topbar")?.offsetHeight || 60;
+  const y = row.getBoundingClientRect().top + window.scrollY - topbarHeight - 8;
+  window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+}
+
+function getResultItemMap(result) {
+  return new Map((result.items || []).map((item) => [item.path, item]));
+}
+
+function getCompareLastAnswer(item) {
+  const transcript = item?.result?.transcript || [];
+  const lastAssistant = [...transcript].reverse().find((entry) => entry.role === "assistant");
+  return String(lastAssistant?.content || item?.result?.answer || "").trim();
+}
+
+function normalizeCompareAnswer(text) {
+  return String(text || "").trim().replace(/\s+/g, " ");
+}
+
+function getCompareScoreValue(item, questionInfo) {
+  return Number(item?.manualScore ?? item?.result?.score?.earned ?? 0).toFixed(3);
+}
+
+function shouldShowCompareQuestion(questionInfo, resultMaps) {
+  const items = resultMaps.map((map) => map.get(questionInfo.path) || null);
+  if (state.compareFilters.differentAnswerOnly) {
+    const values = new Set(items.map((item) => normalizeCompareAnswer(getCompareLastAnswer(item) || "__EMPTY__")));
+    if (values.size <= 1) return false;
+  }
+  if (state.compareFilters.differentScoreOnly) {
+    const values = new Set(items.map((item) => getCompareScoreValue(item, questionInfo)));
+    if (values.size <= 1) return false;
+  }
+  return true;
+}
+
+async function renderCompareResults() {
+  const board = els.comparePageBoard;
+  const empty = els.comparePageEmpty;
+  if (!board || !empty) return;
+  if (!state.compareResults.length || !state.compareSet) {
+    board.classList.add("hidden");
+    board.innerHTML = "";
+    empty.textContent = state.compareSet ? "选择同一测试集下的多个历史结果后，将按题目完整并排对比。" : "当前没有可用于对比的测试集。";
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+  board.classList.remove("hidden");
+  board.style.setProperty("--compare-column-width", `${state.compareColumnWidth}px`);
+  board.style.setProperty("--compare-result-count", String(Math.max(1, state.compareResults.length)));
+
+  const set = getCompareSet();
+  const resultMaps = state.compareResults.map((result) => getResultItemMap(result));
+  const grid = document.createElement("div");
+  grid.className = "compare-board-grid";
+  const header = document.createElement("div");
+  header.className = "compare-board-header";
+  state.compareResults.forEach((result) => {
+    const cell = document.createElement("div");
+    cell.className = "compare-result-header";
+    const createdAt = result.createdAt ? new Date(result.createdAt).toLocaleString("zh-CN") : "";
+    const modelName = result.model?.model || result.model?.presetName || "";
+    const stats = computeScoreStats((result.items || []).map((item) => ({
+      score: item.score ?? item.result?.score?.total ?? 0,
+      manualScore: item.manualScore ?? null,
+      result: item.result || null,
+    })));
+    cell.innerHTML = `<div class="compare-result-name">${escapeHtml(result.name || result.id || "未命名结果")}</div><div class="compare-result-meta">${escapeHtml(modelName)}${createdAt ? ` · ${escapeHtml(createdAt)}` : ""}</div><div class="compare-result-meta">总分 ${formatScore(stats.earned)} / ${formatScore(stats.total)} / ${formatScore(stats.measuredTotal)}</div>`;
+    header.appendChild(cell);
+  });
+  const refCell = document.createElement("div");
+  refCell.className = "compare-result-header compare-reference-header";
+  refCell.innerHTML = `<div class="compare-result-name">预设与备注</div><div class="compare-result-meta">固定窄列</div>`;
+  header.appendChild(refCell);
+  grid.appendChild(header);
+
+  for (const folder of set?.folders || []) {
+    const visibleQuestions = folder.questions
+      .map((question) => ({
+        path: question.path,
+        title: question.title || question.name,
+        fileName: question.name,
+        folderName: folder.name,
+        score: Number(question.score || 0),
+      }))
+      .filter((questionInfo) => shouldShowCompareQuestion(questionInfo, resultMaps));
+    if (!visibleQuestions.length) continue;
+
+    const folderHeader = document.createElement("div");
+    folderHeader.className = `testing-folder-header compare-folder-header${state.compareCollapsedFolders[folder.name] ? " collapsed" : ""}`;
+    folderHeader.dataset.folder = folder.name;
+    const folderStatsText = state.compareResults.map((result, index) => {
+      const stat = computeScoreStats(visibleQuestions.map((questionInfo) => {
+        const item = resultMaps[index].get(questionInfo.path);
+        return {
+          score: questionInfo.score,
+          manualScore: item?.manualScore ?? null,
+          result: item?.result || null,
+        };
+      }));
+      return `${escapeHtml(result.name || result.id || "未命名")} ${formatScore(stat.earned)}/${formatScore(stat.total)}/${formatScore(stat.measuredTotal)}`;
+    }).join(" | ");
+    folderHeader.innerHTML = `<div class="testing-folder-main"><span class="testing-folder-toggle">${state.compareCollapsedFolders[folder.name] ? "▸" : "▾"}</span><strong class="folder-display-name">${escapeHtml(getFolderDisplayName(folder.name))}</strong><span class="testing-folder-count">(${visibleQuestions.length}题)</span></div><div class="testing-folder-score">${folderStatsText}</div><div class="testing-folder-actions"><span class="muted">点击折叠本组全部结果</span></div>`;
+    folderHeader.addEventListener("click", () => {
+      state.compareCollapsedFolders[folder.name] = !state.compareCollapsedFolders[folder.name];
+      renderComparePage();
+    });
+    grid.appendChild(folderHeader);
+
+    if (state.compareCollapsedFolders[folder.name]) {
+      continue;
+    }
+
+    for (const questionInfo of visibleQuestions) {
+      const questionWrap = document.createElement("div");
+      questionWrap.className = "compare-question-wrap";
+      questionWrap.dataset.path = questionInfo.path;
+      const questionHeader = document.createElement("div");
+      questionHeader.className = `compare-question-toggle${state.compareSelectedPath === questionInfo.path ? " selected" : ""}`;
+      questionHeader.innerHTML = `<div class="test-header"><div class="test-title">${escapeHtml(questionInfo.title)}</div><div class="score-badge">${formatScore(questionInfo.score)}分</div><div class="test-meta">${escapeHtml(questionInfo.fileName)}</div><div class="run-stats">点击折叠本题全部结果</div></div>`;
+      questionHeader.addEventListener("click", () => {
+        state.compareSelectedPath = questionInfo.path;
+        state.compareCollapsedQuestions[questionInfo.path] = !state.compareCollapsedQuestions[questionInfo.path];
+        highlightCompareTree();
+        renderCompareResults();
+      });
+      questionWrap.appendChild(questionHeader);
+
+      if (!state.compareCollapsedQuestions[questionInfo.path]) {
+        const questionBody = document.createElement("div");
+        questionBody.className = "compare-board-row compare-question-body-row";
+        for (const [index, result] of state.compareResults.entries()) {
+          const item = resultMaps[index].get(questionInfo.path);
+          questionBody.appendChild(renderCompareResultColumn(result, item, questionInfo));
+        }
+        const refBody = document.createElement("div");
+        refBody.className = "compare-reference-cell";
+        const question = await ensureCompareQuestion(questionInfo.path);
+        refBody.innerHTML = `<div><strong>预设：</strong></div><div class="status-extra">${escapeHtml(question.expectedAnswer?.trim() || "未设置")}</div><div><strong>备注：</strong></div><div class="status-extra">${escapeHtml(question.note?.trim() || "无")}</div>`;
+        questionBody.appendChild(refBody);
+        questionWrap.appendChild(questionBody);
+      }
+      grid.appendChild(questionWrap);
+    }
+  }
+  board.innerHTML = "";
+  board.appendChild(grid);
+}
+
+function renderCompareResultColumn(result, item, questionInfo) {
+  const cell = document.createElement("div");
+  cell.className = "compare-result-cell";
+  if (!item) {
+    cell.innerHTML = `<div class="compare-no-result">未测试</div>`;
+    return cell;
+  }
+  const card = document.createElement("div");
+  card.className = `test-card compare-test-card ${getTestStatusClass({
+    score: questionInfo.score,
+    manualScore: item.manualScore ?? null,
+    result: item.result || null,
+  })}`;
+  const score = Number(item.manualScore ?? item.result?.score?.earned ?? 0);
+  const total = Number(item.score ?? item.result?.score?.total ?? questionInfo.score ?? 0);
+  const header = document.createElement("div");
+  header.className = "compare-test-card-header";
+  header.innerHTML = `<div><div class="compare-card-title">${escapeHtml(questionInfo.title)}</div><div class="run-stats">${escapeHtml(result.name || result.id || "未命名结果")}</div><div class="run-stats">${getRunStat(item.result) || "无统计"}</div></div><div class="score-badge">${formatScore(score)} / ${formatScore(total)}</div>`;
+  const body = document.createElement("div");
+  body.className = "compare-test-card-body";
+  card.appendChild(header);
+  card.appendChild(body);
+  cell.appendChild(card);
+  renderCompareConversation(item, questionInfo, body, { hideSystemPrompt: state.compareFilters.hideSystemPrompt });
+  return cell;
 }
 
 async function loadSelectedResult() {
@@ -1443,7 +1859,7 @@ function renderTestingTree() {
   set.folders.forEach((folder) => {
     const folderEl = document.createElement("div");
     folderEl.className = "tree-folder";
-    folderEl.innerHTML = `<div class="tree-folder-header"><span class="tree-folder-toggle">▾</span><strong>${escapeHtml(folder.name)}</strong></div>`;
+    folderEl.innerHTML = `<div class="tree-folder-header"><span class="tree-folder-toggle">▾</span><strong class="folder-display-name">${escapeHtml(getFolderDisplayName(folder.name))}</strong></div>`;
     const header = folderEl.querySelector(".tree-folder-header");
     const toggle = folderEl.querySelector(".tree-folder-toggle");
     header.addEventListener("click", () => {
@@ -1497,9 +1913,19 @@ function scrollToTestingCard(path, options = {}) {
   if (item) item.open = true;
   const topbarHeight = document.querySelector(".topbar")?.offsetHeight || 60;
   const folderHeaderHeight = card.closest(".testing-folder-body")?.previousElementSibling?.offsetHeight || 0;
-  const summaryHeight = card.querySelector("summary")?.offsetHeight || 0;
   const y = card.getBoundingClientRect().top + window.scrollY - topbarHeight - folderHeaderHeight;
   window.scrollTo({ top: Math.max(0, y), behavior: options.behavior || "smooth" });
+}
+
+function scrollCardBelowFolderHeader(card) {
+  if (!card) return;
+  const topbarHeight = document.querySelector(".topbar")?.offsetHeight || 60;
+  const folderHeader = card.closest(".testing-folder-body")?.previousElementSibling;
+  const folderMain = folderHeader?.querySelector(".testing-folder-main");
+  const cardTop = card.getBoundingClientRect().top + window.scrollY;
+  const folderAnchorHeight = folderMain?.offsetHeight || folderHeader?.offsetHeight || 0;
+  const targetTop = Math.max(0, cardTop - topbarHeight - folderAnchorHeight);
+  window.scrollTo({ top: targetTop, behavior: "smooth" });
 }
 
 function getTestStatusClass(item) {
@@ -1608,7 +2034,7 @@ async function runFolderTests(folderName) {
 }
 
 function normalizePage(page) {
-  return ["editor", "testing", "notes", "settings"].includes(page) ? page : "editor";
+  return ["editor", "testing", "compare", "notes", "settings"].includes(page) ? page : "editor";
 }
 
 function getActivePage() {
@@ -1764,6 +2190,10 @@ function formatScore(value) {
   return Number.isFinite(n) ? n.toFixed(1) : "0.0";
 }
 
+function getFolderDisplayName(name) {
+  return String(name || "").replace(/^\d+_+/, "") || String(name || "");
+}
+
 function isMeasuredItem(item) {
   if (item.manualScore !== undefined && item.manualScore !== null) return true;
   if (!item.result || !item.result.score) return false;
@@ -1861,7 +2291,7 @@ function setNoteSortBy(sortBy) {
 }
 
 async function createNewNote() {
-  const newNote = { title: "", content: "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  const newNote = { title: "", content: "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), format: "md" };
   const result = await api("/api/note", { method: "POST", body: JSON.stringify(newNote) });
   await loadNotes();
   openNote(result.id);
@@ -1921,9 +2351,11 @@ async function saveNote(options = {}) {
     title: els.noteTitle.value,
     content: els.noteContent.value,
     createdAt: state.currentNote.createdAt,
+    format: state.currentNote.format === "json" ? "json" : "md",
   };
   await api("/api/note", { method: "POST", body: JSON.stringify(payload) });
   await loadNotes();
+  state.currentNote = { ...state.currentNote, ...payload, updatedAt: new Date().toISOString() };
   if (showToastOnSuccess) {
     showToast("笔记已保存");
   }

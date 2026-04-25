@@ -1,5 +1,6 @@
 # 忽略测试结果
 /app-data/results/
+/app-data/api-settings.local.json
 
 # 忽略计划
 todo.md

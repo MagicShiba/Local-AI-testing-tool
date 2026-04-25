@@ -9,6 +9,7 @@ const PUBLIC_DIR = path.join(ROOT, "public");
 const DATASET_ROOT = path.join(ROOT, "TestingDataset");
 const APP_DATA_DIR = path.join(ROOT, "app-data");
 const SETTINGS_FILE = path.join(APP_DATA_DIR, "settings.json");
+const API_SETTINGS_FILE = path.join(APP_DATA_DIR, "api-settings.local.json");
 const RESULTS_DIR = path.join(APP_DATA_DIR, "results");
 const MAX_BODY = 50 * 1024 * 1024;
 const DEBUG_TEST_FLOW = false;
@@ -199,12 +200,12 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/settings") {
-    return respondJson(res, 200, await readJsonFile(SETTINGS_FILE, { presets: [], activePresetId: "" }));
+    return respondJson(res, 200, await readSettingsConfig());
   }
 
   if (req.method === "POST" && url.pathname === "/api/settings") {
     const body = await readJsonBody(req);
-    await fsp.writeFile(SETTINGS_FILE, JSON.stringify(body, null, 2), "utf8");
+    await fsp.writeFile(API_SETTINGS_FILE, JSON.stringify(body, null, 2), "utf8");
     return respondJson(res, 200, { ok: true });
   }
 
@@ -251,22 +252,7 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/notes") {
-    const files = await fsp.readdir(NOTES_DIR, { withFileTypes: true });
-    const list = [];
-    const seen = new Set();
-    for (const entry of files) {
-      if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
-      const id = entry.name.replace(/\.json$/i, "");
-      if (seen.has(id)) continue;
-      seen.add(id);
-      try {
-        const content = await fsp.readFile(path.join(NOTES_DIR, entry.name), "utf8");
-        const data = JSON.parse(content);
-        list.push({ id, title: data.title || "", content: data.content || "", createdAt: data.createdAt || "", updatedAt: data.updatedAt || "" });
-      } catch {
-        list.push({ id, title: id, content: "", createdAt: "", updatedAt: "" });
-      }
-    }
+    const list = await readAllNotes();
     list.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
     return respondJson(res, 200, list);
   }
@@ -274,17 +260,24 @@ async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/note") {
     const id = url.searchParams.get("id");
     if (!id) return respondJson(res, 400, { error: "笔记ID不能为空" });
-    const target = path.join(NOTES_DIR, `${id}.json`);
-    if (!(await exists(target))) return respondJson(res, 404, { error: "笔记文件不存在" });
-    const data = await readJsonFile(target, null);
+    const data = await readNoteById(id);
+    if (!data) return respondJson(res, 404, { error: "笔记文件不存在" });
     return respondJson(res, 200, data);
   }
 
   if (req.method === "POST" && url.pathname === "/api/note") {
     const body = await readJsonBody(req);
     const id = body.id || createId();
-    const payload = { id, title: body.title || "", content: body.content || "", createdAt: body.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
-    await fsp.writeFile(path.join(NOTES_DIR, `${id}.json`), JSON.stringify(payload, null, 2), "utf8");
+    const format = body.format === "json" ? "json" : "md";
+    const payload = {
+      id,
+      title: body.title || "",
+      content: body.content || "",
+      createdAt: body.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      format,
+    };
+    await writeNoteFile(payload);
     return respondJson(res, 200, { ok: true, id });
   }
 
@@ -292,10 +285,7 @@ async function handleApi(req, res, url) {
     const body = await readJsonBody(req);
     const id = body.id;
     if (!id) return respondJson(res, 400, { error: "笔记ID不能为空" });
-    const target = path.join(NOTES_DIR, `${id}.json`);
-    if (await exists(target)) {
-      await fsp.unlink(target);
-    }
+    await deleteNoteFiles(id);
     return respondJson(res, 200, { ok: true });
   }
 
@@ -946,6 +936,167 @@ async function readDatasetTree() {
   }
   sets.sort((a, b) => a.name.localeCompare(b.name, "zh-Hans-CN"));
   return { sets };
+}
+
+async function readSettingsConfig() {
+  const localSettings = await readJsonFile(API_SETTINGS_FILE, null);
+  if (localSettings && Array.isArray(localSettings.presets)) {
+    return localSettings;
+  }
+  return await readJsonFile(SETTINGS_FILE, { presets: [], activePresetId: "" });
+}
+
+async function readAllNotes() {
+  const files = await fsp.readdir(NOTES_DIR, { withFileTypes: true });
+  const candidates = new Map();
+  for (const entry of files) {
+    if (!entry.isFile()) continue;
+    const ext = path.extname(entry.name).toLowerCase();
+    if (ext !== ".md" && ext !== ".json") continue;
+    const id = path.basename(entry.name, ext);
+    const priority = ext === ".md" ? 2 : 1;
+    const current = candidates.get(id);
+    if (!current || priority > current.priority) {
+      candidates.set(id, { id, ext, filePath: path.join(NOTES_DIR, entry.name), priority });
+    }
+  }
+  const list = [];
+  for (const candidate of candidates.values()) {
+    const note = await readNoteFromFile(candidate.filePath, candidate.ext, candidate.id);
+    list.push(note || { id: candidate.id, title: candidate.id, content: "", createdAt: "", updatedAt: "", format: candidate.ext === ".md" ? "md" : "json" });
+  }
+  return list;
+}
+
+async function readNoteById(id) {
+  const mdPath = path.join(NOTES_DIR, `${id}.md`);
+  const jsonPath = path.join(NOTES_DIR, `${id}.json`);
+  if (await exists(mdPath)) {
+    return await readNoteFromFile(mdPath, ".md", id);
+  }
+  if (await exists(jsonPath)) {
+    return await readNoteFromFile(jsonPath, ".json", id);
+  }
+  return null;
+}
+
+async function readNoteFromFile(filePath, ext, id) {
+  try {
+    const raw = await fsp.readFile(filePath, "utf8");
+    if (ext === ".json") {
+      const data = JSON.parse(raw);
+      return {
+        id,
+        title: data.title || "",
+        content: data.content || "",
+        createdAt: data.createdAt || "",
+        updatedAt: data.updatedAt || "",
+        format: "json",
+      };
+    }
+    const parsed = parseMarkdownNote(raw);
+    return {
+      id,
+      title: parsed.title || id,
+      content: parsed.content || "",
+      createdAt: parsed.createdAt || "",
+      updatedAt: parsed.updatedAt || "",
+      format: "md",
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function writeNoteFile(note) {
+  const id = sanitizeSegment(note.id || createId());
+  const mdPath = path.join(NOTES_DIR, `${id}.md`);
+  const jsonPath = path.join(NOTES_DIR, `${id}.json`);
+  if (note.format === "json") {
+    const payload = {
+      id,
+      title: note.title || "",
+      content: note.content || "",
+      createdAt: note.createdAt || "",
+      updatedAt: note.updatedAt || "",
+    };
+    await fsp.writeFile(jsonPath, JSON.stringify(payload, null, 2), "utf8");
+    return;
+  }
+  const markdown = serializeMarkdownNote(note);
+  await fsp.writeFile(mdPath, markdown, "utf8");
+}
+
+async function deleteNoteFiles(id) {
+  const mdPath = path.join(NOTES_DIR, `${id}.md`);
+  const jsonPath = path.join(NOTES_DIR, `${id}.json`);
+  if (await exists(mdPath)) await fsp.unlink(mdPath);
+  if (await exists(jsonPath)) await fsp.unlink(jsonPath);
+}
+
+function parseMarkdownNote(raw) {
+  const source = String(raw || "");
+  if (!/^---\r?\n/.test(source)) {
+    return {
+      title: deriveMarkdownTitle(source),
+      content: source,
+      createdAt: "",
+      updatedAt: "",
+    };
+  }
+  const match = source.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!match) {
+    return {
+      title: deriveMarkdownTitle(source),
+      content: source,
+      createdAt: "",
+      updatedAt: "",
+    };
+  }
+  const meta = {};
+  for (const line of match[1].split(/\r?\n/)) {
+    const idx = line.indexOf(":");
+    if (idx < 0) continue;
+    const key = line.slice(0, idx).trim();
+    const rawValue = line.slice(idx + 1).trim();
+    meta[key] = parseFrontMatterValue(rawValue);
+  }
+  const content = match[2] || "";
+  return {
+    title: meta.title || deriveMarkdownTitle(content),
+    content,
+    createdAt: meta.createdAt || "",
+    updatedAt: meta.updatedAt || "",
+  };
+}
+
+function serializeMarkdownNote(note) {
+  const lines = [
+    "---",
+    `title: ${JSON.stringify(String(note.title || ""))}`,
+    `createdAt: ${JSON.stringify(String(note.createdAt || ""))}`,
+    `updatedAt: ${JSON.stringify(String(note.updatedAt || ""))}`,
+    "---",
+    "",
+  ];
+  const content = String(note.content || "");
+  return `${lines.join("\n")}${content}`;
+}
+
+function parseFrontMatterValue(value) {
+  if (!value) return "";
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value.replace(/^['"]|['"]$/g, "");
+  }
+}
+
+function deriveMarkdownTitle(content) {
+  const firstHeading = String(content || "").match(/^\s*#\s+(.+)$/m);
+  if (firstHeading) return firstHeading[1].trim();
+  const firstLine = String(content || "").split(/\r?\n/).find((line) => line.trim());
+  return firstLine ? firstLine.trim().slice(0, 80) : "";
 }
 
 function absoluteDatasetAssetUrl(assetPath) {
