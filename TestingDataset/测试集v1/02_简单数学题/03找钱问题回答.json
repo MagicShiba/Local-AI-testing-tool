@@ -3,7 +3,7 @@
   "title": "70块钱买30块钱东西，商家该找多少钱？",
   "score": 2,
   "systemPrompt": "You are a helpful AI assistant.\n使用中文回答用户问题。",
-  "note": "共计70块钱的纸币，70=50+20\n一般没人买东西会给自己全部的钱\n所以：\n50-30=20",
+  "note": "一波三折的问题，短回答顺着题目说病人对\n长回答说助理对\n真聪明才会想明白：\n共计70块钱的纸币，70=50+20\n一般没人买东西会给自己全部的钱\n所以：\n50-30=20",
   "expectedAnswer": "A",
   "checker": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}",
   "conversation": [
@@ -42,7 +42,7 @@
   ],
   "metadata": {
     "createdAt": "2026-04-16T12:54:17.916Z",
-    "updatedAt": "2026-04-22T16:43:43.630Z",
+    "updatedAt": "2026-04-25T09:44:08.816Z",
     "filename": "03找钱问题回答.json"
   }
 }
