@@ -15,9 +15,11 @@
   - 自动评分与手动改分
   - 测试结果保存与加载
   - token消耗与速度显示
-- OpenAI 接口预设管理
+- 测试结果对比，并排展示不同模型的回答
+- OpenAI 接口预设管理，支持本地与在线模型
 
-![alt text](public/src/img-1.png)
+![alt text](public/src/img-vj.gif)
+
 ## 启动
 
 1. 需要本机已有 Node.js
