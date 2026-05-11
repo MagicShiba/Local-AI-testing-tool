@@ -4,8 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>本地AI测试工具</title>
-    <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/lib/github.min.css" />
+    <link rel="stylesheet" href="/lib/katex.min.css" />
+    <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <div id="app" class="app-shell">
@@ -158,72 +159,93 @@
         </section>
 
         <section class="page" id="page-settings">
-          <div class="single-panel">
-            <div class="panel-header">
-              <h2>OpenAI 接口设置</h2>
-              <div class="toolbar">
+          <div class="settings-container">
+            <div class="settings-sidebar">
+              <div class="settings-sidebar-title">设置</div>
+              <button class="settings-sidebar-btn active" data-settings-panel="apiSettings">接口设置</button>
+              <button class="settings-sidebar-btn" data-settings-panel="chatSettings">聊天设置</button>
+              <button class="settings-sidebar-btn" data-settings-panel="systemPrompts">系统提示词</button>
+              <button class="settings-sidebar-btn" data-settings-panel="checkerTemplate">检测模板</button>
+            </div>
+            <div class="settings-main-panel">
+              <div class="settings-panel-header">
+                <h2 id="settingsPanelTitle">接口设置</h2>
                 <button id="saveSettingsBtn">保存设置</button>
               </div>
-            </div>
-            <div class="muted">当前设置会优先写入本地 `api-settings.local.json`，`settings.json` 保留作示例配置。</div>
+              <div class="muted settings-tip">当前设置会优先写入本地 `api-settings.local.json`</div>
 
-            <div class="settings-layout">
-              <div class="settings-side">
-                <div class="settings-jump-menu">
-                  <button type="button" data-settings-target="apiSettingsSection">接口设置</button>
-                  <button type="button" data-settings-target="checkerTemplateSection">检测模板</button>
+              <div class="settings-panel" id="panel-apiSettings">
+                <div class="settings-section">
+                  <div class="field">
+                    <label>新建模型预设</label>
+                    <div class="inline-form">
+                      <input id="presetName" type="text" placeholder="例如：GPT-4.1" />
+                      <button id="newPresetBtn">新增</button>
+                    </div>
+                  </div>
+                  <div id="presetCards" class="preset-cards"></div>
                 </div>
-                <div class="field">
-                  <label>新预设名称</label>
-                  <div class="inline-actions">
-                    <input id="presetName" type="text" placeholder="例如：GPT-4.1" />
-                    <button id="newPresetBtn">新增</button>
+                <div class="settings-section" id="apiSettingsSection">
+                  <h3>当前预设配置</h3>
+                  <div class="field">
+                    <label>模型名称</label>
+                    <input id="model" type="text" placeholder="模型名称" />
+                  </div>
+                  <div class="field">
+                    <label>接口地址</label>
+                    <input id="baseUrl" type="text" placeholder="http://127.0.0.1:1234/v1" />
+                  </div>
+                  <div class="field">
+                    <label>API Key</label>
+                    <input id="apiKey" type="password" />
+                  </div>
+                  <div class="field">
+                    <label>额外请求参数（JSON）</label>
+                    <textarea id="extraConfig" rows="6" placeholder='{"temperature":0.2,"max_tokens":4096}'></textarea>
+                  </div>
+                  <div class="settings-actions">
+                    <button id="deletePresetBtn">删除当前预设</button>
                   </div>
                 </div>
-                <div id="presetCards" class="preset-cards"></div>
               </div>
 
-              <div class="settings-main">
-                <section id="apiSettingsSection" class="settings-section">
-                <h3>接口设置</h3>
-                <div class="field">
-                  <label>模型名称</label>
-                  <input id="model" type="text" placeholder="模型名称" title="LMS 随便填写就可以使用当前加载的模型"/>
+              <div class="settings-panel hidden" id="panel-chatSettings">
+                <div class="settings-section">
+                  <h3>聊天续写</h3>
+                  <div class="field">
+                    <label>续写方式</label>
+                    <select id="chatContinueMode">
+                      <option value="completions">Completions续写（推荐）</option>
+                      <option value="direct">直接续写</option>
+                      <option value="prompt">提示词续写</option>
+                    </select>
+                  </div>
+                  <div class="field" style="margin-top: 16px;">
+                    <label>续写提示词（用于prompt模式）</label>
+                    <textarea id="continuePrompt" rows="3" placeholder="请续写上一条回答，只输出续写部分，不要重复前文。"></textarea>
+                  </div>
                 </div>
-                <div class="field">
-                  <label>接口地址</label>
-                  <input id="baseUrl" type="text" placeholder="http://127.0.0.1:1234/v1" />
+              </div>
+
+              <div class="settings-panel hidden" id="panel-systemPrompts">
+                <div class="settings-section">
+                  <h3>系统提示词预设管理</h3>
+                  <div id="systemPromptsList" class="system-prompts-list"></div>
+                  <div class="settings-actions">
+                    <button id="addSystemPromptBtn">新增预设</button>
+                  </div>
                 </div>
-                <div class="field">
-                  <label>API Key</label>
-                  <input id="apiKey" type="password" title="本地随便填" />
-                </div>
-                <div class="field">
-                  <label>额外请求参数（JSON）</label>
-                  <textarea id="extraConfig" rows="8" placeholder='{"temperature":0.2,"max_tokens":4096}'></textarea>
-                </div>
-                <div class="toolbar">
-                  <button id="deletePresetBtn">删除当前预设</button>
-                </div>
-                </section>
-                <section>
-                <div class="field">
-                  <label>聊天续写方式</label>
-                  <select id="chatContinueMode">
-                    <option value="prompt">提示词续写（最稳）</option>
-                    <option value="direct">直接续写（合并显示）</option>
-                  </select>
-                </div>
-                
-                </section>
-                <section id="checkerTemplateSection" class="settings-section checker-template-manager">
+              </div>
+
+              <div class="settings-panel hidden" id="panel-checkerTemplate">
+                <div class="settings-section">
                   <h3>检测代码模板管理</h3>
                   <div id="checkerTemplateList" class="checker-template-list"></div>
-                  <div class="inline-actions">
-                    <button type="button" id="addCheckerTemplateBtn">新增模板</button>
-                    <button type="button" id="saveCheckerTemplatesBtn">保存模板</button>
+                  <div class="settings-actions">
+                    <button id="addCheckerTemplateBtn">新增模板</button>
+                    <button id="saveCheckerTemplatesBtn">保存模板</button>
                   </div>
-                </section>
+                </div>
               </div>
             </div>
           </div>
@@ -258,7 +280,16 @@
                   <div class="toolbar">
                     <button id="insertChatBtn" type="button">Insert Ctrl+I</button>
                     <button id="chatRoleToggleBtn" type="button">用户</button>
-                    <button id="chatThinkToggleBtn" type="button">Think</button>
+                    <button id="chatThinkToggleBtn" type="button" class="think-btn" title="思考模式">
+                  <span class="think-label">Think</span>
+                  <select id="chatThinkSelect" class="think-select">
+                    <option value="off">off</option>
+                    <option value="low">low</option>
+                    <option value="medium" selected>medium</option>
+                    <option value="high">high</option>
+                    <option value="on">on</option>
+                  </select>
+                </button>
                     <input id="chatImageInput" type="file" accept="image/*" multiple />
                     <button id="sendChatBtn" type="button">发送</button>
                   </div>

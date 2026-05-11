@@ -2,7 +2,7 @@ const state = {
   tree: { sets: [] },
   selectedQuestionPath: "",
   currentQuestion: null,
-  settings: { presets: [], activePresetId: "" },
+  settings: { presets: [], activePresetId: "", systemPromptPresets: [], defaultSystemPrompt: "" },
   testingSet: "",
   testingPresetId: "",
   testingItems: [],
@@ -39,7 +39,7 @@ const state = {
   currentChatId: "",
   chatFolders: [],
   chatComposeRole: "user",
-  chatThinkEnabled: false,
+  chatThinkReasoning: "medium",
   chatPresetId: "",
 };
 
@@ -128,6 +128,7 @@ const els = {
   insertChatBtn: document.getElementById("insertChatBtn"),
   chatRoleToggleBtn: document.getElementById("chatRoleToggleBtn"),
   chatThinkToggleBtn: document.getElementById("chatThinkToggleBtn"),
+  chatThinkSelect: document.getElementById("chatThinkSelect"),
   exportChatQuestionBtn: document.getElementById("exportChatQuestionBtn"),
 };
 
@@ -244,6 +245,21 @@ function bindEvents() {
   els.insertCheckerTemplateBtn?.addEventListener("click", insertCheckerTemplate);
   els.addCheckerTemplateBtn?.addEventListener("click", addCheckerTemplateEditor);
   els.saveCheckerTemplatesBtn?.addEventListener("click", saveCheckerTemplates);
+  const settingsPanelTitles = { apiSettings: "接口设置", chatSettings: "聊天设置", systemPrompts: "系统提示词", checkerTemplate: "检测模板" };
+  document.querySelectorAll(".settings-sidebar-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".settings-sidebar-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.querySelectorAll(".settings-panel").forEach(p => p.classList.add("hidden"));
+      const panelId = `panel-${btn.dataset.settingsPanel}`;
+      document.getElementById(panelId)?.classList.remove("hidden");
+      const titleEl = document.getElementById("settingsPanelTitle");
+      if (titleEl && settingsPanelTitles[btn.dataset.settingsPanel]) {
+        titleEl.textContent = settingsPanelTitles[btn.dataset.settingsPanel];
+      }
+    });
+  });
+  document.getElementById("addSystemPromptBtn")?.addEventListener("click", addSystemPromptPreset);
   els.newChatBtn?.addEventListener("click", createNewChat);
   els.newChatFolderBtn?.addEventListener("click", createChatFolder);
   els.saveChatBtn?.addEventListener("click", () => saveCurrentChat({ showToast: true }));
@@ -698,9 +714,16 @@ function addRound(round = null) {
 async function loadSettings() {
   state.settings = await api("/api/settings");
   if (!state.settings.presets.length) {
-    state.settings = { activePresetId: "default", chatContinueMode: "prompt", presets: [{ id: "default", name: "默认预设", model: "", baseUrl: "http://127.0.0.1:1234/v1", apiKey: "", extraConfig: "{}" }] };
+    state.settings = { activePresetId: "default", chatContinueMode: "completions", presets: [{ id: "default", name: "默认预设", model: "", baseUrl: "http://127.0.0.1:1234/v1", apiKey: "", extraConfig: "{}" }], systemPromptPresets: [], defaultSystemPrompt: "", continuePrompt: "请续写上一条回答，只输出续写部分，不要重复前文。" };
   }
-  state.settings.chatContinueMode = state.settings.chatContinueMode || "prompt";
+  state.settings.chatContinueMode = state.settings.chatContinueMode || "completions";
+  if (!state.settings.systemPromptPresets || !state.settings.systemPromptPresets.length) {
+    state.settings.systemPromptPresets = [{ id: "default", name: "默认助手", content: "You are a helpful AI assistant.\n使用中文回答用户问题。" }];
+    state.settings.defaultSystemPrompt = state.settings.systemPromptPresets[0].id;
+  }
+  if (!state.settings.continuePrompt) {
+    state.settings.continuePrompt = "请续写上一条回答，只输出续写部分，不要重复前文。";
+  }
   renderSettings();
 }
 
@@ -731,9 +754,77 @@ function renderSettings() {
   });
   state.testingPresetId = els.testingPresetSelect.value || state.settings.presets[0]?.id || "";
   state.chatPresetId = els.chatPresetSelect?.value || state.chatPresetId || state.testingPresetId;
-  if (els.chatContinueMode) els.chatContinueMode.value = state.settings.chatContinueMode || "prompt";
+  if (els.chatContinueMode) els.chatContinueMode.value = state.settings.chatContinueMode || "completions";
+  const continuePromptEl = document.getElementById("continuePrompt");
+  if (continuePromptEl) {
+    continuePromptEl.value = state.settings.continuePrompt || "请续写上一条回答，只输出续写部分，不要重复前文。";
+  }
   renderPresetFields();
   renderCheckerTemplateControls();
+  renderSystemPromptPresets();
+}
+
+function renderSystemPromptPresets() {
+  const list = document.getElementById("systemPromptsList");
+  if (!list) return;
+  list.innerHTML = "";
+  state.settings.systemPromptPresets?.forEach((preset) => {
+    const card = document.createElement("div");
+    card.className = "system-prompt-card";
+    card.innerHTML = `<div class="system-prompt-card-header">
+      <span class="system-prompt-card-title">${escapeHtml(preset.name)}</span>
+      <div class="system-prompt-card-actions">
+        <button type="button" class="editSystemPromptBtn" data-id="${preset.id}">编辑</button>
+        <button type="button" class="deleteSystemPromptBtn" data-id="${preset.id}">删除</button>
+      </div>
+    </div>
+    <textarea rows="3" class="system-prompt-content" data-id="${preset.id}" placeholder="系统提示词内容">${escapeHtml(preset.content || "")}</textarea>`;
+    list.appendChild(card);
+  });
+  list.querySelectorAll(".editSystemPromptBtn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id;
+      const textarea = list.querySelector(`.system-prompt-content[data-id="${id}"]`);
+      const newName = prompt("输入预设名称", state.settings.systemPromptPresets.find(p => p.id === id)?.name || "");
+      if (!newName) return;
+      const preset = state.settings.systemPromptPresets.find(p => p.id === id);
+      if (preset) {
+        preset.name = newName;
+        preset.content = textarea.value;
+        saveSettings();
+      }
+    });
+  });
+  list.querySelectorAll(".deleteSystemPromptBtn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id;
+      if (state.settings.systemPromptPresets.length <= 1) return alert("至少保留一个预设");
+      state.settings.systemPromptPresets = state.settings.systemPromptPresets.filter(p => p.id !== id);
+      if (state.settings.defaultSystemPrompt === id) {
+        state.settings.defaultSystemPrompt = state.settings.systemPromptPresets[0]?.id || "";
+      }
+      saveSettings();
+    });
+  });
+  list.querySelectorAll(".system-prompt-content").forEach(textarea => {
+    textarea.addEventListener("change", () => {
+      const id = textarea.dataset.id;
+      const preset = state.settings.systemPromptPresets.find(p => p.id === id);
+      if (preset) {
+        preset.content = textarea.value;
+        saveSettings();
+      }
+    });
+  });
+}
+
+function addSystemPromptPreset() {
+  const name = prompt("输入预设名称", "新预设");
+  if (!name) return;
+  state.settings.systemPromptPresets = state.settings.systemPromptPresets || [];
+  state.settings.systemPromptPresets.push({ id: `sp-${Date.now()}`, name, content: "" });
+  renderSettings();
+  saveSettings();
 }
 
 function renderPresetFields() {
@@ -770,7 +861,11 @@ async function saveSettings() {
   preset.model = els.model.value.trim();
   preset.apiKey = els.apiKey.value.trim();
   preset.extraConfig = els.extraConfig.value.trim() || "{}";
-  state.settings.chatContinueMode = els.chatContinueMode?.value || "prompt";
+  state.settings.chatContinueMode = els.chatContinueMode?.value || "completions";
+  const continuePromptEl = document.getElementById("continuePrompt");
+  if (continuePromptEl) {
+    state.settings.continuePrompt = continuePromptEl.value;
+  }
   await api("/api/settings", { method: "POST", body: JSON.stringify(state.settings) });
   renderSettings();
 }
@@ -2526,11 +2621,20 @@ function renderChats() {
       item.draggable = true;
       item.dataset.id = chat.id;
       item.dataset.folder = folder;
-      item.innerHTML = `<div class="chat-list-title">${escapeHtml(chat.title || "未命名对话")}</div><div class="chat-list-meta">${chat.messageCount || 0} 条</div>`;
-      item.addEventListener("click", () => openChat(chat.id, folder));
+      item.innerHTML = `<div class="chat-list-title">${escapeHtml(chat.title || "未命名对话")}</div><div class="chat-list-meta">${chat.messageCount || 0} 条</div><span class="chat-list-delete" title="删除对话（Shift+点击不提示）">&#x2716;</span>`;
+      item.addEventListener("click", (e) => {
+        if (e.target.classList.contains("chat-list-delete")) return;
+        openChat(chat.id, folder);
+      });
       item.addEventListener("dblclick", (event) => {
+        if (event.target.classList.contains("chat-list-delete")) return;
         event.stopPropagation();
         renameChat(chat.id);
+      });
+      item.querySelector(".chat-list-delete").addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (!e.shiftKey && !confirm(`确定要删除对话"${chat.title || "未命名对话"}"吗？`)) return;
+        deleteChatById(chat.id, folder);
       });
       item.addEventListener("dragstart", (event) => {
         event.dataTransfer.setData("text/chat-id", chat.id);
@@ -2590,6 +2694,17 @@ async function renameChat(id) {
   renderChatEditor();
 }
 
+async function deleteChatById(id, folder = "") {
+  await api("/api/chat-delete", { method: "POST", body: JSON.stringify({ id, folder }) });
+  if (state.currentChatId === id) {
+    state.currentChat = null;
+    state.currentChatId = "";
+    els.chatEmpty?.classList.remove("hidden");
+    els.chatEditor?.classList.add("hidden");
+  }
+  await loadChats();
+}
+
 function renderChatEditor() {
   if (!state.currentChat) {
     els.chatEmpty?.classList.remove("hidden");
@@ -2607,14 +2722,37 @@ function renderChatMessages() {
   if (!els.chatMessages || !state.currentChat) return;
   els.chatMessages.innerHTML = "";
   const systemWrap = document.createElement("div");
-  systemWrap.className = "chat-system-editor";
-  systemWrap.innerHTML = `<label>系统提示</label><textarea rows="3" placeholder="可选，会作为 system prompt 参与聊天"></textarea>`;
-  const systemInput = systemWrap.querySelector("textarea");
-  systemInput.value = state.currentChat.systemPrompt || "";
-  systemInput.addEventListener("change", async () => {
-    state.currentChat.systemPrompt = systemInput.value;
-    await saveCurrentChat();
-  });
+  systemWrap.className = "chat-system-container";
+  const presets = state.settings.systemPromptPresets || [];
+  const currentPresetId = state.currentChat.systemPromptPresetId || state.settings.defaultSystemPrompt || presets[0]?.id;
+  const currentPreset = presets.find(p => p.id === currentPresetId);
+  const systemContent = state.currentChat.systemPrompt || currentPreset?.content || "";
+  
+  if (presets.length > 0) {
+    const selectWrap = document.createElement("div");
+    selectWrap.className = "chat-system-selector";
+    const select = document.createElement("select");
+    select.innerHTML = presets.map(p => `<option value="${p.id}" ${p.id === currentPresetId ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("");
+    const label = document.createElement("span");
+    label.textContent = "系统提示：";
+    selectWrap.appendChild(label);
+    selectWrap.appendChild(select);
+    select.addEventListener("change", () => {
+      const selectedPreset = presets.find(p => p.id === select.value);
+      if (selectedPreset) {
+        state.currentChat.systemPromptPresetId = selectedPreset.id;
+        state.currentChat.systemPrompt = selectedPreset.content;
+        saveCurrentChat();
+        renderChatMessages();
+      }
+    });
+    systemWrap.appendChild(selectWrap);
+  }
+  
+  const systemBubble = renderMessageBubble("system", systemContent || "未设置系统提示");
+  systemBubble.title = "双击编辑系统提示";
+  systemBubble.addEventListener("dblclick", () => startSystemPromptEdit());
+  systemWrap.appendChild(systemBubble);
   els.chatMessages.appendChild(systemWrap);
   (state.currentChat.messages || []).forEach((message, index) => {
     const wrap = document.createElement("div");
@@ -2645,6 +2783,40 @@ function renderChatMessages() {
     controls.addEventListener("click", (event) => handleChatMessageAction(event, index));
     wrap.appendChild(controls);
     els.chatMessages.appendChild(wrap);
+  });
+}
+
+function createMessageContent(content) {
+  const div = document.createElement("div");
+  div.className = "message-content";
+  div.textContent = content;
+  return div;
+}
+
+async function startSystemPromptEdit() {
+  if (!state.currentChat) return;
+  const systemWrap = document.querySelector(".chat-system-container");
+  if (!systemWrap) return;
+  const presets = state.settings.systemPromptPresets || [];
+  const currentPresetId = state.currentChat.systemPromptPresetId || state.settings.defaultSystemPrompt || presets[0]?.id;
+  const currentPreset = presets.find(p => p.id === currentPresetId);
+  const currentContent = state.currentChat.systemPrompt || currentPreset?.content || "";
+  systemWrap.innerHTML = `<div class="chat-system-edit">
+    <textarea rows="4" class="chat-system-edit-input">${escapeHtml(currentContent)}</textarea>
+    <div class="chat-system-edit-actions">
+      <button type="button" data-edit-save>保存</button>
+      <button type="button" data-edit-cancel>取消</button>
+    </div>
+  </div>`;
+  const textarea = systemWrap.querySelector(".chat-system-edit-input");
+  textarea.focus();
+  systemWrap.querySelector("[data-edit-save]").addEventListener("click", async () => {
+    state.currentChat.systemPrompt = textarea.value;
+    await saveCurrentChat();
+    renderChatMessages();
+  });
+  systemWrap.querySelector("[data-edit-cancel]").addEventListener("click", () => {
+    renderChatMessages();
   });
 }
 
@@ -2739,8 +2911,9 @@ async function insertChatMessage() {
     const uploaded = await api("/api/chat-image", { method: "POST", body: JSON.stringify({ fileName: file.name, base64 }) });
     images.push(uploaded.path);
   }
-  const content = text;
-  const message = { role: state.chatComposeRole, content, images, thinking: state.chatThinkEnabled };
+const content = text;
+  const reasoning = els.chatThinkSelect?.value || state.chatThinkReasoning || "medium";
+  const message = { role: state.chatComposeRole, content, images, reasoning };
   if (state.chatComposeRole === "assistant") {
     message.variants = [content];
     message.activeVariant = 0;
@@ -2760,13 +2933,25 @@ function toggleChatComposeRole() {
 }
 
 function toggleChatThink() {
-  state.chatThinkEnabled = !state.chatThinkEnabled;
-  els.chatThinkToggleBtn.classList.toggle("active", state.chatThinkEnabled);
+  const current = els.chatThinkSelect?.value || "on";
+  if (current === "off") {
+    els.chatThinkSelect.value = state.chatThinkReasoning || "medium";
+    els.chatThinkToggleBtn.classList.add("active");
+  } else {
+    state.chatThinkReasoning = current;
+    els.chatThinkSelect.value = "off";
+    els.chatThinkToggleBtn.classList.remove("active");
+  }
 }
 
 function buildChatQuestion(messages) {
   const conversation = [];
-  const systemPrompt = state.currentChat?.systemPrompt || "";
+  const presets = state.settings.systemPromptPresets || [];
+  const currentPresetId = state.currentChat?.systemPromptPresetId || state.settings.defaultSystemPrompt || presets[0]?.id;
+  const currentPreset = presets.find(p => p.id === currentPresetId);
+  const systemPrompt = state.currentChat?.systemPrompt || currentPreset?.content || "";
+  const lastUserMessage = [...messages].reverse().find(m => m.role === "user");
+  const reasoning = lastUserMessage?.reasoning || "off";
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i];
     if (message.role !== "user") continue;
@@ -2780,7 +2965,7 @@ function buildChatQuestion(messages) {
       assistant: [{ mode: hasAssistant ? "seed" : "generate", content: hasAssistant ? getChatMessageContent(next) : "" }],
     });
   }
-  return { score: 0, systemPrompt, expectedAnswer: "", checker: "function checkAnswer(){ return false; }", conversation };
+  return { score: 0, systemPrompt, expectedAnswer: "", checker: "function checkAnswer(){ return false; }", conversation, reasoning };
 }
 
 async function appendChatAnswer() {
@@ -2788,7 +2973,7 @@ async function appendChatAnswer() {
   if (!preset) return alert("请先在设置页选择可用模型预设");
   const question = buildChatQuestion(state.currentChat.messages);
   try {
-    const result = await api("/api/run-test", { method: "POST", body: JSON.stringify({ preset, question, preserveMetadata: true }) });
+    const result = await api("/api/run-test", { method: "POST", body: JSON.stringify({ preset, question, preserveMetadata: true, reasoning: question.reasoning }) });
     state.currentChat.messages.push({ role: "assistant", content: result.answer || "", variants: [result.answer || ""], activeVariant: 0 });
   } catch (error) {
     state.currentChat.messages.push({ role: "assistant", content: "", variants: [""], activeVariant: 0, error: error.message || "回答失败" });
@@ -2820,13 +3005,35 @@ async function continueChatAnswer(index) {
   const preset = getChatPreset();
   if (!preset) return alert("请先在设置页选择可用模型预设");
   const before = state.currentChat.messages.slice(0, index + 1);
-  const mode = state.settings.chatContinueMode || "prompt";
-  const promptText = mode === "direct"
-    ? "Continue the previous assistant message from exactly where it ended. Output only the continuation."
-    : "请续写上一条回答，只输出续写部分，不要重复前文。";
-  const question = buildChatQuestion([...before, { role: "user", content: promptText, images: [] }]);
+  const mode = state.settings.chatContinueMode || "completions";
+  let result;
   try {
-    const result = await api("/api/run-test", { method: "POST", body: JSON.stringify({ preset, question, preserveMetadata: true }) });
+    if (mode === "completions") {
+      const current = getChatMessageContent(message);
+      const lastAssistant = before.filter(m => m.role === "assistant").pop();
+      const lastContent = lastAssistant ? getChatMessageContent(lastAssistant) : "";
+      const promptSuffix = lastContent ? `\n\n[上文最后部分]\n${lastContent}\n\n[请续写上文，从上面的中断处继续输出，只输出续写内容，不要重复上文]` : "";
+      const systemMessages = before.filter(m => m.role === "system");
+      const systemPrompt = systemMessages.map(m => m.content).join("\n\n") || "你是一个有帮助的AI助手。";
+      const nonSystemBefore = before.filter(m => m.role !== "system");
+      const contextContent = nonSystemBefore.map(m => `${m.role === "user" ? "User" : "Assistant"}: ${getChatMessageContent(m)}`).join("\n\n");
+      const fullPrompt = `${systemPrompt}\n\n${contextContent}${promptSuffix}`;
+      const extraConfig = preset.extraConfigParsed || {};
+      const requestBody = {
+        model: preset.model || "local-model",
+        prompt: fullPrompt,
+        max_tokens: extraConfig.max_tokens || 2048,
+        temperature: extraConfig.temperature ?? 0.7,
+      };
+      if (extraConfig.stop) requestBody.stop = extraConfig.stop;
+      result = await api("/api/run-test", { method: "POST", body: JSON.stringify({ preset, question: { messages: [{ role: "user", content: fullPrompt }] }, useCompletions: true, preserveMetadata: true }) });
+    } else {
+      const promptText = mode === "direct"
+        ? "Continue the previous assistant message from exactly where it ended. Output only the continuation."
+        : (state.settings.continuePrompt || "请续写上一条回答，只输出续写部分，不要重复前文。");
+      const question = buildChatQuestion([...before, { role: "user", content: promptText, images: [] }]);
+      result = await api("/api/run-test", { method: "POST", body: JSON.stringify({ preset, question, preserveMetadata: true }) });
+    }
     const addition = result.answer || "";
     const current = getChatMessageContent(message);
     const merged = `${current}${current && addition ? "\n" : ""}${addition}`;

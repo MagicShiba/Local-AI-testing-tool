@@ -312,7 +312,7 @@ async function handleApi(req, res, url) {
     return respondJson(res, 200, { ok: true });
   }
 
-  if (req.method === "POST" && url.pathname === "/api/run-test") {
+if (req.method === "POST" && url.pathname === "/api/run-test") {
     const body = await readJsonBody(req);
     const preset = body.preset || {};
     const question = body.question || {};
@@ -320,21 +320,31 @@ async function handleApi(req, res, url) {
     const step = body.step;
     const preserveMetadata = body.preserveMetadata !== false;
     const existingTranscript = body.existingTranscript || [];
+    const useCompletions = body.useCompletions === true;
+    const reasoning = body.reasoning || null;
     const abortController = new AbortController();
     const abortRun = () => abortController.abort();
     req.once("aborted", abortRun);
     req.once("close", abortRun);
     let execution;
     try {
-      execution = await executeQuestion(
-        preset,
-        question,
-        followUpText,
-        step,
-        preserveMetadata,
-        existingTranscript,
-        abortController.signal
-      );
+      if (useCompletions) {
+        const prompt = Array.isArray(question.messages) && question.messages[0]?.content ? question.messages[0].content : "";
+        const response = await callCompletions(preset, prompt, abortController.signal);
+        const answer = extractCompletionsAnswer(response);
+        execution = { answer, transcript: [], requests: [] };
+      } else {
+        execution = await executeQuestion(
+          preset,
+          question,
+          followUpText,
+          step,
+          preserveMetadata,
+          existingTranscript,
+          abortController.signal,
+          reasoning
+        );
+      }
     } finally {
       req.off("aborted", abortRun);
       req.off("close", abortRun);
@@ -482,7 +492,7 @@ async function serveChatImage(res, url) {
   fs.createReadStream(fullPath).pipe(res);
 }
 
-async function executeQuestion(preset, question, followUpText, step = null, preserveMetadata = true, existingTranscript = [], abortSignal = null) {
+async function executeQuestion(preset, question, followUpText, step = null, preserveMetadata = true, existingTranscript = [], abortSignal = null, reasoning = null) {
   const messages = [];
   const transcript = [];
   const requests = [];
@@ -574,17 +584,18 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
 
       const requestMessages = cloneJson(messages);
       const reqStartTime = Date.now();
-      const response = await callOpenAI(preset, requestMessages, abortSignal);
+      const extraBody = reasoning ? { reasoning: { effort: reasoning } } : {};
+      const response = await callOpenAI(preset, requestMessages, abortSignal, extraBody);
       const reqDuration = Date.now() - reqStartTime;
       const answer = extractAnswerText(response);
-      const reasoning = extractReasoningText(response);
+      const reasoningText = extractReasoningText(response);
       messages.push({ role: "assistant", content: answer });
       const cleanedRequestMessages = cleanRequestMessagesForTranscript(requestMessages, conversationRounds);
       transcript.push({
         role: "assistant",
         mode: "generate",
         content: answer,
-        reasoning,
+        reasoning: reasoningText,
         request: {
           model: preset.model,
           baseUrl: preset.baseUrl,
@@ -599,7 +610,7 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
         messages: cleanedRequestMessages,
         response,
         answer,
-        reasoning,
+        reasoning: reasoningText,
       });
       lastAnswer = answer;
     }
@@ -619,17 +630,18 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
 
     const requestMessages = cloneJson(messages);
     const reqStartTime = Date.now();
-    const response = await callOpenAI(preset, requestMessages, abortSignal);
+    const extraBodyFollow = reasoning ? { reasoning: { effort: reasoning } } : {};
+    const response = await callOpenAI(preset, requestMessages, abortSignal, extraBodyFollow);
     const reqDuration = Date.now() - reqStartTime;
     const answer = extractAnswerText(response);
-    const reasoning = extractReasoningText(response);
+    const reasoningTextFollow = extractReasoningText(response);
     messages.push({ role: "assistant", content: answer });
     const cleanedRequestMessages = cleanRequestMessagesForTranscript(requestMessages, conversationRounds);
     transcript.push({
       role: "assistant",
       mode: "generate",
       content: answer,
-      reasoning,
+      reasoning: reasoningTextFollow,
       isFollowUp: true,
       request: {
         model: preset.model,
@@ -645,7 +657,7 @@ async function executeQuestion(preset, question, followUpText, step = null, pres
       messages: cleanedRequestMessages,
       response,
       answer,
-      reasoning,
+      reasoning: reasoningTextFollow,
       isFollowUp: true,
     });
     lastAnswer = answer;
@@ -909,12 +921,15 @@ async function toUserContent(parts) {
   return userParts.length === 1 && userParts[0].type === "text" ? userParts[0].text : userParts;
 }
 
-async function callOpenAI(preset, messages, signal = null) {
+async function callOpenAI(preset, messages, signal = null, extraBodyArg = null) {
   if (!preset.baseUrl || !preset.model || !preset.apiKey) {
     throw new Error("请先在设置页填写可用的 baseUrl、model 和 apiKey");
   }
   const endpoint = `${String(preset.baseUrl).replace(/\/+$/, "")}/chat/completions`;
-  const extraBody = preset.extraConfigParsed && typeof preset.extraConfigParsed === "object" ? preset.extraConfigParsed : {};
+  const extraBody = preset.extraConfigParsed && typeof preset.extraConfigParsed === "object" ? { ...preset.extraConfigParsed } : {};
+  if (extraBodyArg) {
+    Object.assign(extraBody, extraBodyArg);
+  }
   const resp = await fetch(endpoint, {
     method: "POST",
     signal,
@@ -933,6 +948,38 @@ async function callOpenAI(preset, messages, signal = null) {
   }
   if (!resp.ok) throw new Error(`模型调用失败(${resp.status}): ${JSON.stringify(data)}`);
   return data;
+}
+
+async function callCompletions(preset, prompt, signal = null) {
+  if (!preset.baseUrl || !preset.model || !preset.apiKey) {
+    throw new Error("请先在设置页填写可用的 baseUrl、model 和 apiKey");
+  }
+  const endpoint = `${String(preset.baseUrl).replace(/\/+$/, "")}/completions`;
+  const extraBody = preset.extraConfigParsed && typeof preset.extraConfigParsed === "object" ? preset.extraConfigParsed : {};
+  const resp = await fetch(endpoint, {
+    method: "POST",
+    signal,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${preset.apiKey}`,
+    },
+    body: JSON.stringify({ model: preset.model, prompt, ...extraBody }),
+  });
+  const text = await resp.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { raw: text };
+  }
+  if (!resp.ok) throw new Error(`模型调用失败(${resp.status}): ${JSON.stringify(data)}`);
+  return data;
+}
+
+function extractCompletionsAnswer(response) {
+  if (typeof response.choices?.[0]?.text === "string") return response.choices[0].text;
+  if (typeof response.content === "string") return response.content;
+  return "";
 }
 
 function extractAnswerText(response) {
@@ -1191,7 +1238,7 @@ async function findChatFile(id, preferredFolder = "") {
 }
 
 async function readSettingsConfig() {
-  const defaultSettings = { presets: [], activePresetId: "" };
+  const defaultSettings = { presets: [], activePresetId: "", systemPromptPresets: [], defaultSystemPrompt: "", continuePrompt: "" };
   const baseSettings = await readJsonFile(SETTINGS_FILE, defaultSettings);
   const localSettings = await readJsonFile(API_SETTINGS_FILE, null);
   if (!localSettings) return baseSettings;
@@ -1201,6 +1248,15 @@ async function readSettingsConfig() {
   }
   if (localSettings.chatContinueMode) {
     merged.chatContinueMode = localSettings.chatContinueMode;
+  }
+  if (localSettings.systemPromptPresets) {
+    merged.systemPromptPresets = localSettings.systemPromptPresets;
+  }
+  if (localSettings.defaultSystemPrompt) {
+    merged.defaultSystemPrompt = localSettings.defaultSystemPrompt;
+  }
+  if (localSettings.continuePrompt) {
+    merged.continuePrompt = localSettings.continuePrompt;
   }
   const basePresets = new Map((merged.presets || []).map((p) => [p.id, p]));
   (localSettings.presets || []).forEach((p) => {
