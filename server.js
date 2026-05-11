@@ -11,6 +11,9 @@ const APP_DATA_DIR = path.join(ROOT, "app-data");
 const SETTINGS_FILE = path.join(APP_DATA_DIR, "settings.json");
 const API_SETTINGS_FILE = path.join(APP_DATA_DIR, "api-settings.local.json");
 const RESULTS_DIR = path.join(APP_DATA_DIR, "results");
+const CHECKER_TEMPLATES_FILE = path.join(APP_DATA_DIR, "checker-templates.json");
+const CHATS_DIR = path.join(APP_DATA_DIR, "chats");
+const CHAT_IMAGE_DIR = path.join(CHATS_DIR, "image");
 const MAX_BODY = 50 * 1024 * 1024;
 const DEBUG_TEST_FLOW = false;
 
@@ -19,8 +22,11 @@ ensureDirSync(APP_DATA_DIR);
 ensureDirSync(RESULTS_DIR);
 const NOTES_DIR = path.join(APP_DATA_DIR, "note");
 ensureDirSync(NOTES_DIR);
+ensureDirSync(CHATS_DIR);
+ensureDirSync(CHAT_IMAGE_DIR);
 const NOTE_IMAGE_DIR = path.join(APP_DATA_DIR, "note", "image");
 ensureDirSync(NOTE_IMAGE_DIR);
+ensureDefaultCheckerTemplatesSync();
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -93,6 +99,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (url.pathname.startsWith("/chat-image/")) {
+      await serveChatImage(res, url);
+      return;
+    }
+
     await serveStatic(res, url);
   } catch (error) {
     respondJson(res, 500, {
@@ -136,7 +147,8 @@ async function handleApi(req, res, url) {
     if (!setName || !folderName) return respondJson(res, 400, { error: "测试集和文件夹不能为空" });
     const target = path.join(DATASET_ROOT, setName, folderName, fileName);
     if (await exists(target)) return respondJson(res, 400, { error: "题目文件已存在" });
-    await fsp.writeFile(target, JSON.stringify(defaultQuestion(fileName), null, 2), "utf8");
+    const content = normalizeQuestionPayload(body.content || defaultQuestion(fileName), fileName);
+    await fsp.writeFile(target, JSON.stringify(content, null, 2), "utf8");
     return respondJson(res, 200, { ok: true, path: path.join(setName, folderName, fileName).replaceAll("\\", "/") });
   }
 
@@ -206,6 +218,17 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/settings") {
     const body = await readJsonBody(req);
     await fsp.writeFile(API_SETTINGS_FILE, JSON.stringify(body, null, 2), "utf8");
+    return respondJson(res, 200, { ok: true });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/checker-templates") {
+    return respondJson(res, 200, await readCheckerTemplates());
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/checker-templates") {
+    const body = await readJsonBody(req);
+    const templates = Array.isArray(body.templates) ? body.templates : [];
+    await writeCheckerTemplates(templates);
     return respondJson(res, 200, { ok: true });
   }
 
@@ -319,6 +342,105 @@ async function handleApi(req, res, url) {
     return respondJson(res, 200, execution);
   }
 
+  if (req.method === "GET" && url.pathname === "/api/chats") {
+    return respondJson(res, 200, await readChatList());
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/chat-image") {
+    const body = await readJsonBody(req);
+    const fileName = sanitizeAssetFileName(body.fileName || "image.png");
+    const base64 = body.base64 || "";
+    if (!fileName || !base64) return respondJson(res, 400, { error: "缺少图片参数" });
+    const ext = path.extname(fileName) || ".png";
+    const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+    const pureBase64 = base64.includes(",") ? base64.split(",").pop() : base64;
+    await ensureDir(CHAT_IMAGE_DIR);
+    await fsp.writeFile(path.join(CHAT_IMAGE_DIR, name), Buffer.from(pureBase64, "base64"));
+    return respondJson(res, 200, { ok: true, path: `image/${name}`, url: `/chat-image/${encodeURIComponent(name)}` });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/chat-folder") {
+    const body = await readJsonBody(req);
+    const folder = sanitizeSegment(body.folder || "默认分组");
+    if (!folder) return respondJson(res, 400, { error: "分组名称不能为空" });
+    await ensureDir(path.join(CHATS_DIR, folder));
+    return respondJson(res, 200, { ok: true, folder });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/chat-folder-rename") {
+    const body = await readJsonBody(req);
+    const from = sanitizeSegment(body.from);
+    const to = sanitizeSegment(body.to);
+    if (!from || !to) return respondJson(res, 400, { error: "分组名称不能为空" });
+    const fromPath = resolveChatFolderPath(from);
+    const toPath = resolveChatFolderPath(to);
+    if (await exists(fromPath)) {
+      if (await exists(toPath)) return respondJson(res, 400, { error: "目标分组已存在" });
+      await fsp.rename(fromPath, toPath);
+    }
+    return respondJson(res, 200, { ok: true, folder: to });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/chat-move") {
+    const body = await readJsonBody(req);
+    const id = sanitizeSimpleName(body.id);
+    const toFolder = sanitizeSegment(body.toFolder || "默认分组");
+    if (!id || !toFolder) return respondJson(res, 400, { error: "缺少移动参数" });
+    const current = await findChatFile(id, body.fromFolder);
+    if (!current) return respondJson(res, 404, { error: "聊天不存在" });
+    const destDir = resolveChatFolderPath(toFolder);
+    await ensureDir(destDir);
+    const dest = path.join(destDir, `${id}.json`);
+    await fsp.rename(current.filePath, dest);
+    const chat = await readJsonFile(dest, {});
+    chat.folder = toFolder;
+    chat.updatedAt = new Date().toISOString();
+    await fsp.writeFile(dest, JSON.stringify(chat, null, 2), "utf8");
+    return respondJson(res, 200, { ok: true });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/chat") {
+    const id = sanitizeSimpleName(url.searchParams.get("id"));
+    if (!id) return respondJson(res, 400, { error: "聊天ID不能为空" });
+    const found = await findChatFile(id, url.searchParams.get("folder"));
+    const chat = found ? await readJsonFile(found.filePath, null) : null;
+    if (!chat) return respondJson(res, 404, { error: "聊天不存在" });
+    chat.folder = found.folder;
+    return respondJson(res, 200, chat);
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/chat") {
+    const body = await readJsonBody(req);
+    const id = body.id ? sanitizeSimpleName(body.id) : createId();
+    const folder = sanitizeSegment(body.folder || "默认分组");
+    const payload = {
+      id,
+      title: body.title || "新对话",
+      folder,
+      createdAt: body.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      messages: Array.isArray(body.messages) ? body.messages : [],
+    };
+    const dir = resolveChatFolderPath(folder);
+    await ensureDir(dir);
+    const target = path.join(dir, `${id}.json`);
+    const previous = await findChatFile(id, body.previousFolder || body.folder);
+    await fsp.writeFile(target, JSON.stringify(payload, null, 2), "utf8");
+    if (previous && previous.filePath !== target && await exists(previous.filePath)) {
+      await fsp.unlink(previous.filePath);
+    }
+    return respondJson(res, 200, { ok: true, id });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/chat-delete") {
+    const body = await readJsonBody(req);
+    const id = sanitizeSimpleName(body.id);
+    if (!id) return respondJson(res, 400, { error: "聊天ID不能为空" });
+    const found = await findChatFile(id, body.folder);
+    if (found && await exists(found.filePath)) await fsp.unlink(found.filePath);
+    return respondJson(res, 200, { ok: true });
+  }
+
   respondJson(res, 404, { error: "接口不存在" });
 }
 
@@ -344,6 +466,16 @@ async function serveNoteImage(res, url) {
   const relPath = decodeURIComponent(url.pathname.replace("/note-image/", ""));
   const fullPath = path.resolve(NOTE_IMAGE_DIR, relPath.replaceAll("..", ""));
   if (!fullPath.startsWith(NOTE_IMAGE_DIR)) return respondText(res, 403, "Forbidden");
+  const stat = await fsp.stat(fullPath).catch(() => null);
+  if (!stat || !stat.isFile()) return respondText(res, 404, "Not Found");
+  res.writeHead(200, { "Content-Type": MIME[path.extname(fullPath).toLowerCase()] || "application/octet-stream" });
+  fs.createReadStream(fullPath).pipe(res);
+}
+
+async function serveChatImage(res, url) {
+  const relPath = decodeURIComponent(url.pathname.replace("/chat-image/", ""));
+  const fullPath = path.resolve(CHAT_IMAGE_DIR, relPath.replaceAll("..", ""));
+  if (!fullPath.startsWith(CHAT_IMAGE_DIR)) return respondText(res, 403, "Forbidden");
   const stat = await fsp.stat(fullPath).catch(() => null);
   if (!stat || !stat.isFile()) return respondText(res, 404, "Not Found");
   res.writeHead(200, { "Content-Type": MIME[path.extname(fullPath).toLowerCase()] || "application/octet-stream" });
@@ -762,6 +894,14 @@ async function toUserContent(parts) {
   for (const part of parts) {
     if (part.type === "image" && part.assetPath) {
       userParts.push({ type: "image_url", image_url: { url: await datasetAssetToDataUrl(part.assetPath) } });
+    } else if (part.type === "image_url" && part.image_url?.url) {
+      const rawUrl = String(part.image_url.url || "");
+      if (rawUrl.startsWith("/chat-image/")) {
+        const rel = decodeURIComponent(rawUrl.replace("/chat-image/", ""));
+        userParts.push({ type: "image_url", image_url: { url: await chatImageToDataUrl(rel) } });
+      } else {
+        userParts.push({ type: "image_url", image_url: { url: rawUrl } });
+      }
     } else {
       userParts.push({ type: "text", text: part.text || "" });
     }
@@ -925,8 +1065,7 @@ async function readDatasetTree() {
       for (const item of questionEntries) {
         if (!item.isFile() || !item.name.endsWith(".json")) continue;
         const relPath = path.join(setName, folderEntry.name, item.name).replaceAll("\\", "/");
-        const question = await readJsonFile(path.join(folderDir, item.name), {});
-        questions.push({ type: "question", name: item.name, path: relPath, title: question.title || "", score: Number(question.score || 0) });
+        questions.push({ type: "question", name: item.name, path: relPath, title: path.basename(item.name, ".json"), score: null, lazy: true });
       }
       questions.sort((a, b) => a.name.localeCompare(b.name, "zh-Hans-CN"));
       folders.push({ type: "folder", name: folderEntry.name, path: path.join(setName, folderEntry.name).replaceAll("\\", "/"), questions });
@@ -938,6 +1077,119 @@ async function readDatasetTree() {
   return { sets };
 }
 
+function normalizeQuestionPayload(content, fileName) {
+  const fallback = defaultQuestion(fileName);
+  const payload = { ...fallback, ...content };
+  payload.version = 1;
+  payload.title = payload.title || path.basename(fileName, ".json");
+  payload.score = Number(payload.score ?? fallback.score);
+  payload.conversation = Array.isArray(payload.conversation) ? payload.conversation : fallback.conversation;
+  payload.checker = payload.checker || fallback.checker;
+  payload.expectedAnswer = payload.expectedAnswer || "";
+  payload.metadata = payload.metadata || {};
+  payload.metadata.createdAt = payload.metadata.createdAt || new Date().toISOString();
+  payload.metadata.updatedAt = new Date().toISOString();
+  payload.metadata.filename = fileName;
+  return payload;
+}
+
+function defaultCheckerTemplates() {
+  return [
+    {
+      id: "exact-match",
+      name: "完全匹配",
+      code: `function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}`,
+    },
+    {
+      id: "partial-choice",
+      name: "选择题半分示例",
+      code: `function checkAnswer(answer, correctAnswer) {\n  if (answer == "C") { return true; //返回满分\n  } else if (answer == "B") { \n    return { earned : 0.5 };  // 选 B 返回 50% 的分数\n  } else { return false; }  //其它0分\n}`,
+    },
+  ];
+}
+
+function ensureDefaultCheckerTemplatesSync() {
+  if (fs.existsSync(CHECKER_TEMPLATES_FILE)) return;
+  fs.writeFileSync(CHECKER_TEMPLATES_FILE, JSON.stringify(defaultCheckerTemplates(), null, 2), "utf8");
+}
+
+async function readCheckerTemplates() {
+  const templates = await readJsonFile(CHECKER_TEMPLATES_FILE, null);
+  return Array.isArray(templates) ? templates : defaultCheckerTemplates();
+}
+
+async function writeCheckerTemplates(templates) {
+  const normalized = templates.map((item, index) => ({
+    id: sanitizeSimpleName(item.id) || `template-${index + 1}`,
+    name: String(item.name || `模板 ${index + 1}`),
+    code: String(item.code || ""),
+  }));
+  await fsp.writeFile(CHECKER_TEMPLATES_FILE, JSON.stringify(normalized, null, 2), "utf8");
+}
+
+async function readChatList() {
+  const files = await fsp.readdir(CHATS_DIR, { withFileTypes: true });
+  const folders = new Set(["默认分组"]);
+  const list = [];
+  for (const entry of files) {
+    if (entry.isDirectory()) {
+      folders.add(entry.name);
+      const nested = await fsp.readdir(path.join(CHATS_DIR, entry.name), { withFileTypes: true });
+      for (const file of nested) {
+        if (file.isFile() && file.name.endsWith(".json")) {
+          const item = await readChatListItem(path.join(CHATS_DIR, entry.name, file.name), entry.name, file.name);
+          if (item) list.push(item);
+        }
+      }
+      continue;
+    }
+    if (entry.isFile() && entry.name.endsWith(".json")) {
+      const item = await readChatListItem(path.join(CHATS_DIR, entry.name), "默认分组", entry.name);
+      if (item) list.push(item);
+    }
+  }
+  list.sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+  return { folders: [...folders].sort((a, b) => a.localeCompare(b, "zh-Hans-CN")), chats: list };
+}
+
+async function readChatListItem(filePath, folder, fileName) {
+  const chat = await readJsonFile(filePath, null);
+  if (!chat) return null;
+  return {
+    id: chat.id || fileName.replace(/\.json$/i, ""),
+    title: chat.title || "未命名对话",
+    folder,
+    createdAt: chat.createdAt || "",
+    updatedAt: chat.updatedAt || "",
+    messageCount: Array.isArray(chat.messages) ? chat.messages.length : 0,
+  };
+}
+
+function resolveChatFolderPath(folder) {
+  const safeFolder = sanitizeSegment(folder || "默认分组");
+  const fullPath = path.resolve(CHATS_DIR, safeFolder);
+  if (!fullPath.startsWith(CHATS_DIR)) throw new Error("非法聊天分组路径");
+  return fullPath;
+}
+
+async function findChatFile(id, preferredFolder = "") {
+  const safeId = sanitizeSimpleName(id);
+  const folder = sanitizeSegment(preferredFolder || "");
+  if (folder) {
+    const filePath = path.join(resolveChatFolderPath(folder), `${safeId}.json`);
+    if (await exists(filePath)) return { filePath, folder };
+  }
+  const entries = await fsp.readdir(CHATS_DIR, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const filePath = path.join(CHATS_DIR, entry.name, `${safeId}.json`);
+    if (await exists(filePath)) return { filePath, folder: entry.name };
+  }
+  const flatPath = path.join(CHATS_DIR, `${safeId}.json`);
+  if (await exists(flatPath)) return { filePath: flatPath, folder: "默认分组" };
+  return null;
+}
+
 async function readSettingsConfig() {
   const defaultSettings = { presets: [], activePresetId: "" };
   const baseSettings = await readJsonFile(SETTINGS_FILE, defaultSettings);
@@ -946,6 +1198,9 @@ async function readSettingsConfig() {
   const merged = { ...baseSettings };
   if (localSettings.activePresetId) {
     merged.activePresetId = localSettings.activePresetId;
+  }
+  if (localSettings.chatContinueMode) {
+    merged.chatContinueMode = localSettings.chatContinueMode;
   }
   const basePresets = new Map((merged.presets || []).map((p) => [p.id, p]));
   (localSettings.presets || []).forEach((p) => {
@@ -1114,6 +1369,16 @@ function absoluteDatasetAssetUrl(assetPath) {
 
 async function datasetAssetToDataUrl(assetPath) {
   const fullPath = resolveDatasetPath(assetPath);
+  const ext = path.extname(fullPath).toLowerCase();
+  const mime = DATA_URL_MIME[ext] || "application/octet-stream";
+  const buffer = await fsp.readFile(fullPath);
+  return `data:${mime};base64,${buffer.toString("base64")}`;
+}
+
+async function chatImageToDataUrl(imagePath) {
+  const rel = String(imagePath || "").replace(/^image[\\/]/, "");
+  const fullPath = path.resolve(CHAT_IMAGE_DIR, rel.replaceAll("/", path.sep));
+  if (!fullPath.startsWith(CHAT_IMAGE_DIR)) throw new Error("非法聊天图片路径");
   const ext = path.extname(fullPath).toLowerCase();
   const mime = DATA_URL_MIME[ext] || "application/octet-stream";
   const buffer = await fsp.readFile(fullPath);

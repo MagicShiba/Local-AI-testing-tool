@@ -1,0 +1,12 @@
+[
+  {
+    "id": "exact-match",
+    "name": "完全匹配",
+    "code": "function checkAnswer(answer, correctAnswer) {\n    return answer === correctAnswer;\n}"
+  },
+  {
+    "id": "partial-choice",
+    "name": "选择题半分示例",
+    "code": "function checkAnswer(answer, correctAnswer) {\n  if (answer == \"C\") { return true; //返回满分\n  } else if (answer == \"B\") { \n    return { earned : 0.5 };  // 选 B 返回 50% 的分数\n  } else { return false; }  //其它0分\n}"
+  }
+]

@@ -3,9 +3,11 @@ function renderMessageBubble(role, content, reasoning = "") {
   div.className = `message-bubble message-${role}`;
   if (role === "assistant") {
     div.innerHTML = renderAssistantAnswer(content || "", reasoning);
+    queueMathTypeset(div);
     return div;
   }
   div.innerHTML = renderMarkdown(content || "");
+  queueMathTypeset(div);
   return div;
 }
 
@@ -39,6 +41,11 @@ function renderMarkdown(source) {
   });
 
   return enhanceCodeBlocks(html, hl);
+}
+
+function queueMathTypeset(element) {
+  if (!window.MathJax?.typesetPromise) return;
+  requestAnimationFrame(() => window.MathJax.typesetPromise([element]).catch(() => {}));
 }
 
 function enhanceCodeBlocks(html, hljsLib) {
@@ -178,9 +185,7 @@ function handleDocumentClick(e) {
       }).catch(() => { btn.textContent = "复制失败"; });
     } else if (btn.classList.contains("preview-btn")) {
       const code = btn.getAttribute("data-preview");
-      const w = window.open("", "_blank");
-      w.document.write(code);
-      w.document.close();
+      openHtmlModal(code);
     }
     return;
   }
@@ -202,4 +207,24 @@ function handleDocumentClick(e) {
     hidden.style.display = "block";
     expandBtn.textContent = "收起";
   }
+}
+
+function openHtmlModal(code) {
+  const modalOverlay = document.getElementById("modal-overlay");
+  const modalBody = document.getElementById("modal-body");
+  if (!modalOverlay || !modalBody) {
+    const w = window.open("", "_blank");
+    w.document.write(code);
+    w.document.close();
+    return;
+  }
+  modalBody.innerHTML = "";
+  const iframe = document.createElement("iframe");
+  iframe.className = "modal-webview";
+  iframe.srcdoc = code;
+  modalBody.appendChild(iframe);
+  modalOverlay.style.display = "flex";
+  modalOverlay.onclick = (e) => {
+    if (e.target === modalOverlay) modalOverlay.style.display = "none";
+  };
 }

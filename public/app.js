@@ -31,6 +31,16 @@ const state = {
     differentScoreOnly: false,
     hideSystemPrompt: false,
   },
+  excludedTestingFolders: new Set(),
+  compareExcludedFolders: new Set(),
+  checkerTemplates: [],
+  chats: [],
+  currentChat: null,
+  currentChatId: "",
+  chatFolders: [],
+  chatComposeRole: "user",
+  chatThinkEnabled: false,
+  chatPresetId: "",
 };
 
 const DEBUG_TEST_FLOW = false;
@@ -65,6 +75,7 @@ const els = {
   model: document.getElementById("model"),
   apiKey: document.getElementById("apiKey"),
   extraConfig: document.getElementById("extraConfig"),
+  chatContinueMode: document.getElementById("chatContinueMode"),
   presetCards: document.getElementById("presetCards"),
   testingSetSelect: document.getElementById("testingSetSelect"),
   testingPresetSelect: document.getElementById("testingPresetSelect"),
@@ -97,6 +108,27 @@ const els = {
   compareDiffAnswerBtn: document.getElementById("compareDiffAnswerBtn"),
   compareDiffScoreBtn: document.getElementById("compareDiffScoreBtn"),
   compareHideSystemBtn: document.getElementById("compareHideSystemBtn"),
+  checkerTemplateSelect: document.getElementById("checkerTemplateSelect"),
+  insertCheckerTemplateBtn: document.getElementById("insertCheckerTemplateBtn"),
+  checkerTemplateList: document.getElementById("checkerTemplateList"),
+  addCheckerTemplateBtn: document.getElementById("addCheckerTemplateBtn"),
+  saveCheckerTemplatesBtn: document.getElementById("saveCheckerTemplatesBtn"),
+  chatList: document.getElementById("chatList"),
+  chatEmpty: document.getElementById("chatEmpty"),
+  chatEditor: document.getElementById("chatEditor"),
+  chatTitle: document.getElementById("chatTitle"),
+  chatPresetSelect: document.getElementById("chatPresetSelect"),
+  chatMessages: document.getElementById("chatMessages"),
+  chatInput: document.getElementById("chatInput"),
+  chatImageInput: document.getElementById("chatImageInput"),
+  newChatBtn: document.getElementById("newChatBtn"),
+  newChatFolderBtn: document.getElementById("newChatFolderBtn"),
+  saveChatBtn: document.getElementById("saveChatBtn"),
+  sendChatBtn: document.getElementById("sendChatBtn"),
+  insertChatBtn: document.getElementById("insertChatBtn"),
+  chatRoleToggleBtn: document.getElementById("chatRoleToggleBtn"),
+  chatThinkToggleBtn: document.getElementById("chatThinkToggleBtn"),
+  exportChatQuestionBtn: document.getElementById("exportChatQuestionBtn"),
 };
 
 document.addEventListener("DOMContentLoaded", init);
@@ -115,7 +147,7 @@ async function init() {
   }
   state.menuSidebarExpanded = localStorage.getItem(MENU_SIDEBAR_EXPANDED_KEY) === "1";
   updateMenuSidebar();
-  await Promise.all([loadTree(), loadSettings(), loadResults(), loadNotes()]);
+  await Promise.all([loadTree(), loadSettings(), loadResults(), loadNotes(), loadCheckerTemplates(), loadChats()]);
   await syncTestingSelectors();
   renderEditor();
   renderNotes();
@@ -167,6 +199,9 @@ function bindEvents() {
   document.getElementById("newPresetBtn").addEventListener("click", createPreset);
   document.getElementById("deletePresetBtn").addEventListener("click", deletePreset);
   document.getElementById("saveSettingsBtn").addEventListener("click", saveSettings);
+  document.querySelectorAll("[data-settings-target]").forEach((btn) => {
+    btn.addEventListener("click", () => document.getElementById(btn.dataset.settingsTarget)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  });
   document.getElementById("reloadTestingBtn").addEventListener("click", async () => {
     await loadTree();
     renderTestingList();
@@ -206,6 +241,24 @@ function bindEvents() {
     state.compareFilters.hideSystemPrompt = !state.compareFilters.hideSystemPrompt;
     renderComparePage();
   });
+  els.insertCheckerTemplateBtn?.addEventListener("click", insertCheckerTemplate);
+  els.addCheckerTemplateBtn?.addEventListener("click", addCheckerTemplateEditor);
+  els.saveCheckerTemplatesBtn?.addEventListener("click", saveCheckerTemplates);
+  els.newChatBtn?.addEventListener("click", createNewChat);
+  els.newChatFolderBtn?.addEventListener("click", createChatFolder);
+  els.saveChatBtn?.addEventListener("click", () => saveCurrentChat({ showToast: true }));
+  els.sendChatBtn?.addEventListener("click", sendChatMessage);
+  els.insertChatBtn?.addEventListener("click", insertChatMessage);
+  els.chatRoleToggleBtn?.addEventListener("click", toggleChatComposeRole);
+  els.chatThinkToggleBtn?.addEventListener("click", toggleChatThink);
+  els.chatPresetSelect?.addEventListener("change", () => {
+    state.chatPresetId = els.chatPresetSelect.value;
+  });
+  els.exportChatQuestionBtn?.addEventListener("click", exportCurrentChatToQuestion);
+  [els.chatTitle].forEach((el) => el?.addEventListener("input", () => {
+    if (!state.currentChat) return;
+    state.currentChat.title = els.chatTitle.value;
+  }));
   els.scoreStatsBtn?.addEventListener("click", () => {
     updateScoreSummary();
     els.scoreStatsPopover?.classList.toggle("hidden");
@@ -268,6 +321,9 @@ function switchPage(page, options = {}) {
     renderTestingList();
   } else if (page === "compare") {
     renderComparePage();
+  } else if (page === "chat") {
+    renderChats();
+    renderChatEditor();
   }
   restorePageScroll(page, immediateScrollRestore);
 }
@@ -329,7 +385,7 @@ function renderEditorTree() {
       qEl.className = `tree-question${state.selectedQuestionPath === question.path ? " active" : ""}`;
       qEl.draggable = true;
       qEl.dataset.path = question.path;
-      qEl.innerHTML = `<div>${escapeHtml(question.title || question.name)}</div><div class="muted">${escapeHtml(question.name)} · ${question.score}分</div>`;
+      qEl.innerHTML = `<div>${escapeHtml(question.title || question.name)}</div><div class="muted">${escapeHtml(question.name)}${question.score == null ? " · 未加载分值" : ` · ${question.score}分`}</div>`;
       qEl.addEventListener("click", () => openQuestion(question.path));
       qEl.addEventListener("dragstart", (event) => {
         qEl.classList.add("dragging");
@@ -642,14 +698,16 @@ function addRound(round = null) {
 async function loadSettings() {
   state.settings = await api("/api/settings");
   if (!state.settings.presets.length) {
-    state.settings = { activePresetId: "default", presets: [{ id: "default", name: "默认预设", model: "", baseUrl: "http://127.0.0.1:1234/v1", apiKey: "", extraConfig: "{}" }] };
+    state.settings = { activePresetId: "default", chatContinueMode: "prompt", presets: [{ id: "default", name: "默认预设", model: "", baseUrl: "http://127.0.0.1:1234/v1", apiKey: "", extraConfig: "{}" }] };
   }
+  state.settings.chatContinueMode = state.settings.chatContinueMode || "prompt";
   renderSettings();
 }
 
 function renderSettings() {
   els.presetCards.innerHTML = "";
   els.testingPresetSelect.innerHTML = "";
+  if (els.chatPresetSelect) els.chatPresetSelect.innerHTML = "";
   state.settings.presets.forEach((preset) => {
     const card = document.createElement("div");
     card.className = `preset-card${preset.id === state.settings.activePresetId ? " active" : ""}`;
@@ -665,9 +723,17 @@ function renderSettings() {
     option.textContent = preset.model ? `${preset.model} · ${preset.name}` : preset.name;
     option.selected = preset.id === state.testingPresetId || (!state.testingPresetId && preset.id === state.settings.activePresetId);
     els.testingPresetSelect.appendChild(option);
+    if (els.chatPresetSelect) {
+      const chatOption = option.cloneNode(true);
+      chatOption.selected = preset.id === (state.chatPresetId || state.testingPresetId || state.settings.activePresetId);
+      els.chatPresetSelect.appendChild(chatOption);
+    }
   });
   state.testingPresetId = els.testingPresetSelect.value || state.settings.presets[0]?.id || "";
+  state.chatPresetId = els.chatPresetSelect?.value || state.chatPresetId || state.testingPresetId;
+  if (els.chatContinueMode) els.chatContinueMode.value = state.settings.chatContinueMode || "prompt";
   renderPresetFields();
+  renderCheckerTemplateControls();
 }
 
 function renderPresetFields() {
@@ -704,6 +770,7 @@ async function saveSettings() {
   preset.model = els.model.value.trim();
   preset.apiKey = els.apiKey.value.trim();
   preset.extraConfig = els.extraConfig.value.trim() || "{}";
+  state.settings.chatContinueMode = els.chatContinueMode?.value || "prompt";
   await api("/api/settings", { method: "POST", body: JSON.stringify(state.settings) });
   renderSettings();
 }
@@ -766,7 +833,13 @@ async function renderTestingList() {
 }
 
 async function createTestingCard(item) {
-  const questionData = item.question || (await api(`/api/question?path=${encodeURIComponent(item.path)}`)).content;
+  const shouldLoadQuestion = Boolean(item.open || item.question || item.result);
+  const questionData = shouldLoadQuestion ? (item.question || (await api(`/api/question?path=${encodeURIComponent(item.path)}`)).content) : null;
+  if (questionData) {
+    item.question = questionData;
+    item.title = questionData.title || item.fileName || item.title;
+    item.score = Number(questionData.score || 0);
+  }
   const details = document.createElement("details");
   const isSelected = item.path === state.testingSelectedPath;
   details.className = `test-card ${getTestStatusClass(item)}${isSelected ? " selected" : ""}`;
@@ -774,6 +847,10 @@ async function createTestingCard(item) {
   details.open = Boolean(item.open);
   details.addEventListener("toggle", () => {
     item.open = details.open;
+    if (details.open && !item.question) {
+      refreshTestingView();
+      return;
+    }
     if (!details.open) {
       requestAnimationFrame(() => scrollCardBelowFolderHeader(details));
     }
@@ -795,8 +872,8 @@ async function createTestingCard(item) {
   const conversation = document.createElement("div");
   const side = document.createElement("div");
   side.className = "test-side";
-  const expectedText = questionData?.expectedAnswer?.trim() ? escapeHtml(questionData.expectedAnswer) : "未设置";
-  const noteText = questionData?.note?.trim() ? escapeHtml(questionData.note) : "无";
+  const expectedText = questionData?.expectedAnswer?.trim() ? escapeHtml(questionData.expectedAnswer) : "展开后加载";
+  const noteText = questionData?.note?.trim() ? escapeHtml(questionData.note) : "展开后加载";
   side.innerHTML = `<div class="toolbar"><button type="button" class="runOneBtn">${item.running ? "停止本题" : "测试本题"}</button></div><div class="status-line">${item.running ? "正在按轮次自动测试..." : "就绪"}</div><div class="status-extra">${renderStatusExtra(item, expectedText, noteText)}</div>`;
   const runButton = side.querySelector(".runOneBtn");
   runButton.disabled = false;
@@ -829,7 +906,11 @@ async function createTestingCard(item) {
 
   body.append(conversation, side);
   details.appendChild(body);
-  renderQuestionConversation(item, conversation);
+  if (questionData) {
+    renderQuestionConversation(item, conversation);
+  } else {
+    conversation.innerHTML = `<div class="empty-state">展开题目后加载完整内容</div>`;
+  }
   return details;
 }
 
@@ -1303,6 +1384,7 @@ async function runAllTests() {
   });
   updateStopButton();
   for (const item of state.testingItems) {
+    if (state.excludedTestingFolders.has(item.folderName || "未分组")) continue;
     if (state.stopAllRequested) break;
     await runSingleTest(item.path, null);
   }
@@ -1360,7 +1442,9 @@ async function refreshTestingView() {
     folderHeader.className = "testing-folder-header";
     folderHeader.dataset.folder = folderName;
     const folderStats = computeScoreStats(itemsByFolder[folderName]);
-    folderHeader.innerHTML = `<div class="testing-folder-main"><span class="testing-folder-toggle">▾</span><strong class="folder-display-name">${escapeHtml(getFolderDisplayName(folderName))}</strong><span class="testing-folder-count">(${itemsByFolder[folderName].length}题)</span></div><div class="testing-folder-score">得分:${formatScore(folderStats.earned)} / ${formatScore(folderStats.total)} / ${formatScore(folderStats.measuredTotal)}</div><div class="testing-folder-actions"><button type="button" class="run-folder-btn">测试本组</button></div>`;
+    const excluded = state.excludedTestingFolders.has(folderName);
+    folderHeader.classList.toggle("excluded", excluded);
+    folderHeader.innerHTML = `<div class="testing-folder-main"><span class="testing-folder-toggle">▾</span><strong class="folder-display-name">${escapeHtml(getFolderDisplayName(folderName))}</strong><span class="testing-folder-count">(${itemsByFolder[folderName].length}题)</span></div><div class="testing-folder-score">${excluded ? "已排除" : `得分:${formatScore(folderStats.earned)} / ${formatScore(folderStats.total)} / ${formatScore(folderStats.measuredTotal)}`}</div><div class="testing-folder-actions"><button type="button" class="exclude-folder-btn">${excluded ? "取消排除" : "排除本组"}</button><button type="button" class="run-folder-btn">测试本组</button></div>`;
     folderHeader.addEventListener("click", () => {
       folderHeader.classList.toggle("collapsed");
       const toggle = folderHeader.querySelector(".testing-folder-toggle");
@@ -1371,6 +1455,12 @@ async function refreshTestingView() {
     folderHeader.querySelector(".run-folder-btn").addEventListener("click", async (event) => {
       event.stopPropagation();
       await runFolderTests(folderName);
+    });
+    folderHeader.querySelector(".exclude-folder-btn").addEventListener("click", async (event) => {
+      event.stopPropagation();
+      if (state.excludedTestingFolders.has(folderName)) state.excludedTestingFolders.delete(folderName);
+      else state.excludedTestingFolders.add(folderName);
+      await refreshTestingView();
     });
     els.testingList.appendChild(folderHeader);
     
@@ -1401,7 +1491,7 @@ async function refreshTestingView() {
 }
 
 function updateScoreSummary() {
-  const summary = computeScoreStats(state.testingItems);
+  const summary = computeScoreStats(getIncludedTestingItems());
   els.scoreSummary.textContent = `总分: ${formatScore(summary.earned)}/${formatScore(summary.total)}/${formatScore(summary.measuredTotal)}`;
   if (els.scoreStatsPercent) {
     const percent = summary.measuredTotal > 0 ? ((summary.measuredEarned / summary.measuredTotal) * 100).toFixed(1) : "0.0";
@@ -1574,6 +1664,27 @@ function getCompareSet() {
   return state.tree.sets.find((item) => item.name === state.compareSet);
 }
 
+function getFolderNameFromPath(itemPath) {
+  return String(itemPath || "").split("/")[1] || "未分组";
+}
+
+function renderCompareScoreStats(result) {
+  const groups = {};
+  (result.items || []).forEach((item) => {
+    const folder = getFolderNameFromPath(item.path);
+    if (!groups[folder]) groups[folder] = [];
+    groups[folder].push(item);
+  });
+  const overall = computeScoreStats((result.items || []).filter((item) => !state.compareExcludedFolders.has(getFolderNameFromPath(item.path))));
+  const rows = [`<div class="score-stats-item score-stats-overall"><strong>总计</strong><span>已测:${formatScore(overall.measuredEarned)}/${formatScore(overall.measuredTotal)}</span><span>未测:${formatScore(overall.unmeasuredTotal)}</span></div>`];
+  Object.keys(groups).sort((a, b) => a.localeCompare(b, "zh-Hans-CN")).forEach((folder) => {
+    const excluded = state.compareExcludedFolders.has(folder);
+    const stat = computeScoreStats(excluded ? [] : groups[folder]);
+    rows.push(`<div class="score-stats-item${excluded ? " score-stats-excluded" : ""}"><strong>${escapeHtml(folder)}</strong><span>${excluded ? "已排除" : `已测:${formatScore(stat.measuredEarned)}/${formatScore(stat.measuredTotal)}`}</span><span>未测:${formatScore(stat.unmeasuredTotal)}</span></div>`);
+  });
+  return `<div class="score-stats-content">${rows.join("")}</div>`;
+}
+
 function renderCompareTree() {
   if (!els.compareTree) return;
   els.compareTree.innerHTML = "";
@@ -1688,7 +1799,7 @@ async function renderCompareResults() {
     cell.className = "compare-result-header";
     const createdAt = result.createdAt ? new Date(result.createdAt).toLocaleString("zh-CN") : "";
     const modelName = result.model?.model || result.model?.presetName || "";
-    const stats = computeScoreStats((result.items || []).map((item) => ({
+    const stats = computeScoreStats((result.items || []).filter((item) => !state.compareExcludedFolders.has(getFolderNameFromPath(item.path))).map((item) => ({
       score: item.score ?? item.result?.score?.total ?? 0,
       manualScore: item.manualScore ?? null,
       result: item.result || null,
@@ -1716,7 +1827,11 @@ async function renderCompareResults() {
         metaInfo.push(`速度${(totalTokens / (totalDuration / 1000)).toFixed(1)}t/s`);
       }
     }
-    cell.innerHTML = `<div class="compare-result-name">${escapeHtml(result.name || result.id || "未命名结果")}</div><div class="compare-result-meta">${escapeHtml(modelName)} ${metaInfo.join(" ")}</div>`;
+    cell.innerHTML = `<div class="compare-result-name">${escapeHtml(result.name || result.id || "未命名结果")}</div><div class="compare-result-meta">${escapeHtml(modelName)} ${metaInfo.join(" ")}</div><button type="button" class="compare-score-detail-btn">详细分数</button><div class="compare-score-popover hidden">${renderCompareScoreStats(result)}</div>`;
+    cell.querySelector(".compare-score-detail-btn").addEventListener("click", (event) => {
+      event.stopPropagation();
+      cell.querySelector(".compare-score-popover")?.classList.toggle("hidden");
+    });
     header.appendChild(cell);
   });
   const refCell = document.createElement("div");
@@ -1738,7 +1853,8 @@ async function renderCompareResults() {
     if (!visibleQuestions.length) continue;
 
     const folderHeader = document.createElement("div");
-    folderHeader.className = `testing-folder-header compare-folder-header${state.compareCollapsedFolders[folder.name] ? " collapsed" : ""}`;
+    const excluded = state.compareExcludedFolders.has(folder.name);
+    folderHeader.className = `testing-folder-header compare-folder-header${state.compareCollapsedFolders[folder.name] ? " collapsed" : ""}${excluded ? " excluded" : ""}`;
     folderHeader.dataset.folder = folder.name;
     const folderStatsText = state.compareResults.map((result, index) => {
       const stat = computeScoreStats(visibleQuestions.map((questionInfo) => {
@@ -1749,16 +1865,22 @@ async function renderCompareResults() {
           result: item?.result || null,
         };
       }));
-      return `${escapeHtml(result.name || result.id || "未命名")} ${formatScore(stat.earned)}/${formatScore(stat.total)}/${formatScore(stat.measuredTotal)}`;
+      return `${escapeHtml(result.name || result.id || "未命名")} ${excluded ? "已排除" : `${formatScore(stat.earned)}/${formatScore(stat.total)}/${formatScore(stat.measuredTotal)}`}`;
     }).join(" | ");
-    folderHeader.innerHTML = `<div class="testing-folder-main"><span class="testing-folder-toggle">${state.compareCollapsedFolders[folder.name] ? "▸" : "▾"}</span><strong class="folder-display-name">${escapeHtml(getFolderDisplayName(folder.name))}</strong><span class="testing-folder-count">(${visibleQuestions.length}题)</span></div><div class="testing-folder-score">${folderStatsText}`;
+    folderHeader.innerHTML = `<div class="testing-folder-main"><span class="testing-folder-toggle">${state.compareCollapsedFolders[folder.name] ? "▸" : "▾"}</span><strong class="folder-display-name">${escapeHtml(getFolderDisplayName(folder.name))}</strong><span class="testing-folder-count">(${visibleQuestions.length}题)</span></div><div class="testing-folder-score">${folderStatsText}</div><div class="testing-folder-actions"><button type="button" class="compare-exclude-folder-btn">${excluded ? "取消排除" : "排除本组"}</button></div>`;
     folderHeader.addEventListener("click", () => {
       state.compareCollapsedFolders[folder.name] = !state.compareCollapsedFolders[folder.name];
       renderComparePage();
     });
+    folderHeader.querySelector(".compare-exclude-folder-btn")?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (state.compareExcludedFolders.has(folder.name)) state.compareExcludedFolders.delete(folder.name);
+      else state.compareExcludedFolders.add(folder.name);
+      renderComparePage();
+    });
     grid.appendChild(folderHeader);
 
-    if (state.compareCollapsedFolders[folder.name]) {
+    if (excluded || state.compareCollapsedFolders[folder.name]) {
       continue;
     }
 
@@ -1816,12 +1938,23 @@ function renderCompareResultColumn(result, item, questionInfo) {
   const total = Number(item.score ?? item.result?.score?.total ?? questionInfo.score ?? 0);
   const header = document.createElement("div");
   header.className = `compare-test-card-header ${statusClass}`;
-  header.innerHTML = `<div><div class="run-stats">${getRunStat(item.result).replace(/<br\s*\/?>/gi, ' ') || "无统计"}</div></div><div class="score-badge">${formatScore(score)} / ${formatScore(total)}</div>`;
+  header.innerHTML = `<div><div class="run-stats">${getRunStat(item.result).replace(/<br\s*\/?>/gi, ' ') || "无统计"}</div></div><div class="compare-score-edit"><span class="score-badge">${formatScore(score)} / ${formatScore(total)}</span><input class="compareManualScoreInput" type="number" min="0" step="0.5" value="${score}" title="修改本次对比分数" /></div>`;
+  header.querySelector(".compareManualScoreInput")?.addEventListener("change", (event) => {
+    item.manualScore = event.target.value === "" ? null : Number(event.target.value);
+    renderComparePage();
+  });
   const body = document.createElement("div");
   body.className = "compare-test-card-body";
   card.appendChild(header);
   card.appendChild(body);
   cell.appendChild(card);
+  const injectedHtml = item.result?.score?.statusHtml || "";
+  if (injectedHtml) {
+    const extra = document.createElement("div");
+    extra.className = "status-extra compare-status-extra";
+    extra.innerHTML = injectedHtml;
+    body.appendChild(extra);
+  }
   renderCompareConversation(item, questionInfo, body, { hideSystemPrompt: state.compareFilters.hideSystemPrompt });
   return cell;
 }
@@ -2035,6 +2168,7 @@ function renderStatusExtra(item, expectedText, noteText) {
 }
 
 async function runFolderTests(folderName) {
+  state.excludedTestingFolders.delete(folderName);
   const items = state.testingItems.filter((item) => item.folderName === folderName);
   if (!items.length) return;
   state.isBatchRunning = true;
@@ -2056,7 +2190,7 @@ async function runFolderTests(folderName) {
 }
 
 function normalizePage(page) {
-  return ["editor", "testing", "compare", "notes", "settings"].includes(page) ? page : "editor";
+  return ["editor", "testing", "compare", "chat", "notes", "settings"].includes(page) ? page : "editor";
 }
 
 function getActivePage() {
@@ -2138,6 +2272,17 @@ async function handleCheckerActionClick(event) {
   if (action === "copy-text") {
     const text = typeof payload === "string" ? payload : JSON.stringify(payload);
     await navigator.clipboard.writeText(text);
+    return;
+  }
+  if (action === "open-html") {
+    const html = typeof payload === "string" ? payload : String(payload?.html || "");
+    if (typeof openHtmlModal === "function") openHtmlModal(html);
+    return;
+  }
+  if (action === "open-html-base64") {
+    const encoded = typeof payload === "string" ? payload : String(payload?.html || "");
+    const html = decodeURIComponent(atob(encoded));
+    if (typeof openHtmlModal === "function") openHtmlModal(html);
     return;
   }
   if (action === "set-follow-up") {
@@ -2251,7 +2396,7 @@ function computeScoreStats(items) {
 
 function renderScoreStatsPanel() {
   if (!els.scoreStatsContent) return;
-  const overall = computeScoreStats(state.testingItems);
+  const overall = computeScoreStats(getIncludedTestingItems());
   const groups = {};
   state.testingItems.forEach((item) => {
     const folder = item.folderName || "未分组";
@@ -2261,10 +2406,15 @@ function renderScoreStatsPanel() {
   const rows = [];
   rows.push(`<div class="score-stats-item score-stats-overall"><strong>总计</strong><span>已测:${formatScore(overall.measuredEarned)}/${formatScore(overall.measuredTotal)}</span><span>未测:${formatScore(overall.unmeasuredTotal)}</span></div>`);
   Object.keys(groups).sort((a, b) => a.localeCompare(b, "zh-Hans-CN")).forEach((folderName) => {
-    const stat = computeScoreStats(groups[folderName]);
-    rows.push(`<div class="score-stats-item"><strong>${escapeHtml(folderName)}</strong><span>已测:${formatScore(stat.measuredEarned)}/${formatScore(stat.measuredTotal)}</span><span>未测:${formatScore(stat.unmeasuredTotal)}</span></div>`);
+    const excluded = state.excludedTestingFolders.has(folderName);
+    const stat = computeScoreStats(excluded ? [] : groups[folderName]);
+    rows.push(`<div class="score-stats-item${excluded ? " score-stats-excluded" : ""}"><strong>${escapeHtml(folderName)}</strong><span>${excluded ? "已排除" : `已测:${formatScore(stat.measuredEarned)}/${formatScore(stat.measuredTotal)}`}</span><span>未测:${formatScore(stat.unmeasuredTotal)}</span></div>`);
   });
   els.scoreStatsContent.innerHTML = rows.join("");
+}
+
+function getIncludedTestingItems() {
+  return state.testingItems.filter((item) => !state.excludedTestingFolders.has(item.folderName || "未分组"));
 }
 
 function showToast(message) {
@@ -2280,8 +2430,466 @@ function showToast(message) {
   }, 1800);
 }
 
+async function loadCheckerTemplates() {
+  state.checkerTemplates = await api("/api/checker-templates");
+  renderCheckerTemplateControls();
+}
+
+function renderCheckerTemplateControls() {
+  if (els.checkerTemplateSelect) {
+    els.checkerTemplateSelect.innerHTML = "";
+    state.checkerTemplates.forEach((template) => {
+      const option = document.createElement("option");
+      option.value = template.id;
+      option.textContent = template.name;
+      els.checkerTemplateSelect.appendChild(option);
+    });
+  }
+  if (!els.checkerTemplateList) return;
+  els.checkerTemplateList.innerHTML = "";
+  state.checkerTemplates.forEach((template) => addCheckerTemplateEditor(template));
+}
+
+function insertCheckerTemplate() {
+  const template = state.checkerTemplates.find((item) => item.id === els.checkerTemplateSelect?.value);
+  if (!template || !els.checker) return;
+  els.checker.value = template.code || "";
+  els.checker.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function addCheckerTemplateEditor(template = null) {
+  if (!els.checkerTemplateList) return;
+  const data = template || { id: `template-${Date.now()}`, name: "新模板", code: "function checkAnswer(answer, correctAnswer) {\n  return false;\n}" };
+  const card = document.createElement("div");
+  card.className = "checker-template-card";
+  card.innerHTML = `<input class="checker-template-name" value="${escapeHtml(data.name)}" placeholder="模板名称" /><textarea class="checker-template-code" rows="6"></textarea><div class="toolbar"><button type="button" class="remove-checker-template-btn">删除</button></div>`;
+  card.dataset.id = data.id;
+  card.querySelector(".checker-template-code").value = data.code || "";
+  card.querySelector(".remove-checker-template-btn").addEventListener("click", () => card.remove());
+  els.checkerTemplateList.appendChild(card);
+}
+
+async function saveCheckerTemplates() {
+  const templates = [...els.checkerTemplateList.querySelectorAll(".checker-template-card")].map((card, index) => ({
+    id: card.dataset.id || `template-${index + 1}`,
+    name: card.querySelector(".checker-template-name").value || `模板 ${index + 1}`,
+    code: card.querySelector(".checker-template-code").value || "",
+  }));
+  await api("/api/checker-templates", { method: "POST", body: JSON.stringify({ templates }) });
+  state.checkerTemplates = templates;
+  renderCheckerTemplateControls();
+  showToast("检测模板已保存");
+}
+
 async function loadNotes() {
   state.notes = await api("/api/notes");
+}
+
+async function loadChats() {
+  const data = await api("/api/chats");
+  state.chatFolders = Array.isArray(data.folders) ? data.folders : [];
+  state.chats = Array.isArray(data.chats) ? data.chats : (Array.isArray(data) ? data : []);
+  renderChats();
+}
+
+function renderChats() {
+  if (!els.chatList) return;
+  els.chatList.innerHTML = "";
+  const groups = Object.fromEntries((state.chatFolders.length ? state.chatFolders : ["默认分组"]).map((folder) => [folder, []]));
+  state.chats.forEach((chat) => {
+    const folder = chat.folder || "默认分组";
+    if (!groups[folder]) groups[folder] = [];
+    groups[folder].push(chat);
+  });
+  Object.keys(groups).sort((a, b) => a.localeCompare(b, "zh-Hans-CN")).forEach((folder) => {
+    const title = document.createElement("div");
+    title.className = "chat-folder-title";
+    title.textContent = folder;
+    title.dataset.folder = folder;
+    title.addEventListener("dblclick", () => renameChatFolder(folder));
+    title.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      title.classList.add("drag-over");
+    });
+    title.addEventListener("dragleave", () => title.classList.remove("drag-over"));
+    title.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      title.classList.remove("drag-over");
+      const id = event.dataTransfer.getData("text/chat-id");
+      const fromFolder = event.dataTransfer.getData("text/chat-folder");
+      if (id) await moveChatToFolder(id, fromFolder, folder);
+    });
+    els.chatList.appendChild(title);
+    groups[folder].forEach((chat) => {
+      const item = document.createElement("div");
+      item.className = `chat-list-item${state.currentChatId === chat.id ? " active" : ""}`;
+      item.draggable = true;
+      item.dataset.id = chat.id;
+      item.dataset.folder = folder;
+      item.innerHTML = `<div class="chat-list-title">${escapeHtml(chat.title || "未命名对话")}</div><div class="chat-list-meta">${chat.messageCount || 0} 条</div>`;
+      item.addEventListener("click", () => openChat(chat.id, folder));
+      item.addEventListener("dblclick", (event) => {
+        event.stopPropagation();
+        renameChat(chat.id);
+      });
+      item.addEventListener("dragstart", (event) => {
+        event.dataTransfer.setData("text/chat-id", chat.id);
+        event.dataTransfer.setData("text/chat-folder", folder);
+      });
+      els.chatList.appendChild(item);
+    });
+  });
+}
+
+async function openChat(id, folder = "") {
+  state.currentChat = await api(`/api/chat?id=${encodeURIComponent(id)}&folder=${encodeURIComponent(folder)}`);
+  state.currentChatId = state.currentChat.id;
+  renderChats();
+  renderChatEditor();
+}
+
+async function createNewChat() {
+  const folder = state.currentChat?.folder || state.chatFolders[0] || "默认分组";
+  const chat = { title: "新对话", folder, messages: [] };
+  const result = await api("/api/chat", { method: "POST", body: JSON.stringify(chat) });
+  await loadChats();
+  await openChat(result.id);
+}
+
+async function createChatFolder() {
+  const name = prompt("新分组名称", "新分组");
+  if (!name) return;
+  await api("/api/chat-folder", { method: "POST", body: JSON.stringify({ folder: name }) });
+  await loadChats();
+}
+
+async function renameChatFolder(folder) {
+  const next = prompt("重命名分组", folder);
+  if (!next || next === folder) return;
+  await api("/api/chat-folder-rename", { method: "POST", body: JSON.stringify({ from: folder, to: next }) });
+  if (state.currentChat?.folder === folder) state.currentChat.folder = next;
+  await loadChats();
+}
+
+async function moveChatToFolder(id, fromFolder, toFolder) {
+  if (fromFolder === toFolder) return;
+  await api("/api/chat-move", { method: "POST", body: JSON.stringify({ id, fromFolder, toFolder }) });
+  if (state.currentChatId === id && state.currentChat) state.currentChat.folder = toFolder;
+  await loadChats();
+}
+
+async function renameChat(id) {
+  const chat = state.chats.find((item) => item.id === id);
+  const next = prompt("重命名对话", chat?.title || "未命名对话");
+  if (!next) return;
+  const full = state.currentChatId === id ? state.currentChat : await api(`/api/chat?id=${encodeURIComponent(id)}&folder=${encodeURIComponent(chat?.folder || "")}`);
+  full.title = next;
+  await api("/api/chat", { method: "POST", body: JSON.stringify(full) });
+  if (state.currentChatId === id) state.currentChat = full;
+  await loadChats();
+  renderChatEditor();
+}
+
+function renderChatEditor() {
+  if (!state.currentChat) {
+    els.chatEmpty?.classList.remove("hidden");
+    els.chatEditor?.classList.add("hidden");
+    return;
+  }
+  els.chatEmpty?.classList.add("hidden");
+  els.chatEditor?.classList.remove("hidden");
+  els.chatTitle.value = state.currentChat.title || "";
+  if (els.chatPresetSelect && state.chatPresetId) els.chatPresetSelect.value = state.chatPresetId;
+  renderChatMessages();
+}
+
+function renderChatMessages() {
+  if (!els.chatMessages || !state.currentChat) return;
+  els.chatMessages.innerHTML = "";
+  const systemWrap = document.createElement("div");
+  systemWrap.className = "chat-system-editor";
+  systemWrap.innerHTML = `<label>系统提示</label><textarea rows="3" placeholder="可选，会作为 system prompt 参与聊天"></textarea>`;
+  const systemInput = systemWrap.querySelector("textarea");
+  systemInput.value = state.currentChat.systemPrompt || "";
+  systemInput.addEventListener("change", async () => {
+    state.currentChat.systemPrompt = systemInput.value;
+    await saveCurrentChat();
+  });
+  els.chatMessages.appendChild(systemWrap);
+  (state.currentChat.messages || []).forEach((message, index) => {
+    const wrap = document.createElement("div");
+    wrap.className = `chat-message chat-${message.role}`;
+    const content = getChatMessageContent(message);
+    const images = getChatMessageImages(message);
+    if (images.length) {
+      const imageWrap = document.createElement("div");
+      imageWrap.className = "chat-image-row";
+      images.forEach((imagePath) => {
+      const img = document.createElement("img");
+        img.src = getChatImageUrl(imagePath);
+      img.alt = "";
+      img.className = "chat-image";
+        imageWrap.appendChild(img);
+      });
+      wrap.appendChild(imageWrap);
+    }
+    const bubble = renderMessageBubble(message.role === "assistant" ? "assistant" : "user", content || (message.error ? `回答失败：${message.error}` : ""));
+    bubble.dataset.chatIndex = String(index);
+    bubble.title = "双击编辑";
+    bubble.addEventListener("dblclick", () => startInlineChatEdit(index));
+    wrap.appendChild(bubble);
+    const controls = document.createElement("div");
+    controls.className = "message-controls";
+    const variants = message.variants || [message.content || ""];
+    controls.innerHTML = `${message.role === "assistant" ? `<button type="button" data-chat-action="prev">&lt;</button><span>${(message.activeVariant || 0) + 1} / ${variants.length}</span><button type="button" data-chat-action="next">&gt;</button><button type="button" data-chat-action="refresh">↻</button><button type="button" data-chat-action="continue">续写</button>` : ""}<button type="button" data-chat-action="branch">分支</button><button type="button" data-chat-action="copy">复制</button><button type="button" data-chat-action="delete">删除</button>`;
+    controls.addEventListener("click", (event) => handleChatMessageAction(event, index));
+    wrap.appendChild(controls);
+    els.chatMessages.appendChild(wrap);
+  });
+}
+
+function getChatMessageContent(message) {
+  if (message.role !== "assistant") return message.content || "";
+  const variants = message.variants || [message.content || ""];
+  return variants[message.activeVariant || 0] || "";
+}
+
+function getChatMessageImages(message) {
+  if (Array.isArray(message.images)) return message.images;
+  return message.image ? [message.image] : [];
+}
+
+function getChatImageUrl(imagePath) {
+  const value = String(imagePath || "");
+  if (value.startsWith("data:") || value.startsWith("/")) return value;
+  if (value.startsWith("image/")) return `/chat-image/${encodeURIComponent(value.replace(/^image\//, ""))}`;
+  return value;
+}
+
+async function handleChatMessageAction(event, index) {
+  const action = event.target?.dataset?.chatAction;
+  if (!action || !state.currentChat) return;
+  const message = state.currentChat.messages[index];
+  if (!message) return;
+  if (action === "refresh") {
+    await refreshChatAnswer(index);
+  } else if (action === "continue") {
+    await continueChatAnswer(index);
+  } else if (action === "branch") {
+    await branchCurrentChat(index);
+  } else if (action === "copy") {
+    await navigator.clipboard.writeText(getChatMessageContent(message));
+  } else if (action === "delete") {
+    state.currentChat.messages.splice(index, 1);
+    await saveCurrentChat();
+    renderChatMessages();
+  } else if (action === "prev" || action === "next") {
+    const variants = message.variants || [message.content || ""];
+    const delta = action === "next" ? 1 : -1;
+    message.activeVariant = (variants.length + (message.activeVariant || 0) + delta) % variants.length;
+    await saveCurrentChat();
+    renderChatMessages();
+  }
+}
+
+function startInlineChatEdit(index) {
+  const message = state.currentChat?.messages?.[index];
+  const bubble = els.chatMessages?.querySelector(`.message-bubble[data-chat-index="${index}"]`);
+  if (!message || !bubble || bubble.classList.contains("editing")) return;
+  bubble.classList.add("editing");
+  const textarea = document.createElement("textarea");
+  textarea.className = "chat-inline-editor";
+  textarea.value = getChatMessageContent(message);
+  const actions = document.createElement("div");
+  actions.className = "toolbar chat-inline-actions";
+  actions.innerHTML = `<button type="button" data-edit-save>保存</button><button type="button" data-edit-cancel>取消</button>`;
+  bubble.innerHTML = "";
+  bubble.append(textarea, actions);
+  textarea.focus();
+  actions.querySelector("[data-edit-save]").addEventListener("click", async () => {
+    if (message.role === "assistant") {
+      message.variants = message.variants || [message.content || ""];
+      message.variants[message.activeVariant || 0] = textarea.value;
+      message.content = message.variants[message.activeVariant || 0];
+      message.error = "";
+    } else {
+      message.content = textarea.value;
+    }
+    await saveCurrentChat();
+    renderChatMessages();
+  });
+  actions.querySelector("[data-edit-cancel]").addEventListener("click", renderChatMessages);
+}
+
+async function sendChatMessage() {
+  if (!state.currentChat) await createNewChat();
+  const inserted = await insertChatMessage();
+  if (!inserted) return;
+  await appendChatAnswer();
+}
+
+async function insertChatMessage() {
+  if (!state.currentChat) await createNewChat();
+  const text = els.chatInput.value.trim();
+  const files = [...(els.chatImageInput.files || [])];
+  if (!text && !files.length) return false;
+  const images = [];
+  for (const file of files) {
+    const base64 = await fileToBase64(file);
+    const uploaded = await api("/api/chat-image", { method: "POST", body: JSON.stringify({ fileName: file.name, base64 }) });
+    images.push(uploaded.path);
+  }
+  const content = text;
+  const message = { role: state.chatComposeRole, content, images, thinking: state.chatThinkEnabled };
+  if (state.chatComposeRole === "assistant") {
+    message.variants = [content];
+    message.activeVariant = 0;
+  }
+  state.currentChat.messages.push(message);
+  els.chatInput.value = "";
+  els.chatImageInput.value = "";
+  await saveCurrentChat();
+  renderChatMessages();
+  return true;
+}
+
+function toggleChatComposeRole() {
+  state.chatComposeRole = state.chatComposeRole === "user" ? "assistant" : "user";
+  els.chatRoleToggleBtn.textContent = state.chatComposeRole === "user" ? "用户" : "AI";
+  els.chatRoleToggleBtn.classList.toggle("active", state.chatComposeRole === "assistant");
+}
+
+function toggleChatThink() {
+  state.chatThinkEnabled = !state.chatThinkEnabled;
+  els.chatThinkToggleBtn.classList.toggle("active", state.chatThinkEnabled);
+}
+
+function buildChatQuestion(messages) {
+  const conversation = [];
+  const systemPrompt = state.currentChat?.systemPrompt || "";
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
+    if (message.role !== "user") continue;
+    const rest = messages.slice(i + 1);
+    const nextUserOffset = rest.findIndex((item) => item.role === "user");
+    const candidateRange = nextUserOffset >= 0 ? rest.slice(0, nextUserOffset) : rest;
+    const next = candidateRange.find((item) => item.role === "assistant");
+    const hasAssistant = next?.role === "assistant";
+    conversation.push({
+      user: { parts: [{ type: "text", text: message.content || "" }, ...getChatMessageImages(message).map((image) => ({ type: "image_url", image_url: { url: getChatImageUrl(image) } }))] },
+      assistant: [{ mode: hasAssistant ? "seed" : "generate", content: hasAssistant ? getChatMessageContent(next) : "" }],
+    });
+  }
+  return { score: 0, systemPrompt, expectedAnswer: "", checker: "function checkAnswer(){ return false; }", conversation };
+}
+
+async function appendChatAnswer() {
+  const preset = getChatPreset();
+  if (!preset) return alert("请先在设置页选择可用模型预设");
+  const question = buildChatQuestion(state.currentChat.messages);
+  try {
+    const result = await api("/api/run-test", { method: "POST", body: JSON.stringify({ preset, question, preserveMetadata: true }) });
+    state.currentChat.messages.push({ role: "assistant", content: result.answer || "", variants: [result.answer || ""], activeVariant: 0 });
+  } catch (error) {
+    state.currentChat.messages.push({ role: "assistant", content: "", variants: [""], activeVariant: 0, error: error.message || "回答失败" });
+  }
+  await saveCurrentChat();
+  renderChatMessages();
+}
+
+async function refreshChatAnswer(index) {
+  const message = state.currentChat.messages[index];
+  const before = state.currentChat.messages.slice(0, index).filter((item) => item.role !== "assistant" || getChatMessageContent(item));
+  const preset = getChatPreset();
+  try {
+    const result = await api("/api/run-test", { method: "POST", body: JSON.stringify({ preset, question: buildChatQuestion(before), preserveMetadata: true }) });
+  message.variants = message.variants || [message.content || ""];
+  message.variants.push(result.answer || "");
+  message.activeVariant = message.variants.length - 1;
+    message.error = "";
+  } catch (error) {
+    message.error = error.message || "回答失败";
+  }
+  await saveCurrentChat();
+  renderChatMessages();
+}
+
+async function continueChatAnswer(index) {
+  const message = state.currentChat.messages[index];
+  if (!message || message.role !== "assistant") return;
+  const preset = getChatPreset();
+  if (!preset) return alert("请先在设置页选择可用模型预设");
+  const before = state.currentChat.messages.slice(0, index + 1);
+  const mode = state.settings.chatContinueMode || "prompt";
+  const promptText = mode === "direct"
+    ? "Continue the previous assistant message from exactly where it ended. Output only the continuation."
+    : "请续写上一条回答，只输出续写部分，不要重复前文。";
+  const question = buildChatQuestion([...before, { role: "user", content: promptText, images: [] }]);
+  try {
+    const result = await api("/api/run-test", { method: "POST", body: JSON.stringify({ preset, question, preserveMetadata: true }) });
+    const addition = result.answer || "";
+    const current = getChatMessageContent(message);
+    const merged = `${current}${current && addition ? "\n" : ""}${addition}`;
+    message.variants = message.variants || [message.content || ""];
+    message.variants[message.activeVariant || 0] = merged;
+    message.content = merged;
+    message.error = "";
+  } catch (error) {
+    message.error = error.message || "续写失败";
+  }
+  await saveCurrentChat();
+  renderChatMessages();
+}
+
+async function branchCurrentChat(index = null) {
+  if (!state.currentChat) return;
+  const payload = { ...cloneSimpleJson(state.currentChat), id: undefined, title: `${state.currentChat.title || "对话"} 分支`, createdAt: new Date().toISOString() };
+  if (Number.isInteger(index)) payload.messages = payload.messages.slice(0, index + 1);
+  const result = await api("/api/chat", { method: "POST", body: JSON.stringify(payload) });
+  await loadChats();
+  await openChat(result.id);
+}
+
+async function saveCurrentChat(options = {}) {
+  if (!state.currentChat) return;
+  state.currentChat.title = els.chatTitle?.value || state.currentChat.title || "新对话";
+  await api("/api/chat", { method: "POST", body: JSON.stringify(state.currentChat) });
+  await loadChats();
+  if (options.showToast) showToast("聊天已保存");
+}
+
+function getChatPreset() {
+  const id = state.chatPresetId || els.chatPresetSelect?.value || state.testingPresetId || els.testingPresetSelect?.value;
+  const preset = state.settings.presets.find((item) => item.id === id);
+  if (!preset) return null;
+  let extra = {};
+  try {
+    extra = preset.extraConfig ? JSON.parse(preset.extraConfig) : {};
+  } catch {
+    extra = {};
+  }
+  return { ...preset, extraConfigParsed: extra };
+}
+
+async function exportCurrentChatToQuestion() {
+  if (!state.currentChat) return;
+  const target = getSelectedFolderTarget();
+  if (!target.setName || !target.folderName) return alert("请先在题库编辑器中选择一个目标文件夹");
+  const fileName = `${(state.currentChat.title || "聊天导出").replace(/[\\/:*?"<>|]/g, "_")}.json`;
+  const conversation = [];
+  const messages = state.currentChat.messages || [];
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    if (msg.role !== "user") continue;
+    const nextAssistant = messages.slice(i + 1).find((item) => item.role === "assistant");
+    conversation.push({
+      user: { parts: [{ type: "text", text: msg.content || "" }] },
+      assistant: [{ mode: "seed", content: nextAssistant ? getChatMessageContent(nextAssistant) : "" }],
+    });
+  }
+  await api("/api/create-question", { method: "POST", body: JSON.stringify({ setName: target.setName, folderName: target.folderName, fileName, content: { title: state.currentChat.title, score: 1, conversation } }) });
+  await loadTree();
+  showToast("已导出为问题");
 }
 
 function renderNotes() {

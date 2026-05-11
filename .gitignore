@@ -12,3 +12,4 @@ TestingDataset/*
 
 !TestingDataset/测试集v1/
 !TestingDataset/测试集v1/**
+/app-data/chats

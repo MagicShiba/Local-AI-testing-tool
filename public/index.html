@@ -110,6 +110,10 @@
                 </div>
                 <div class="field">
                   <label>检测代码（JS 函数）</label>
+                  <div class="inline-actions checker-template-row">
+                    <select id="checkerTemplateSelect"></select>
+                    <button type="button" id="insertCheckerTemplateBtn">插入模板</button>
+                  </div>
                   <textarea id="checker" rows="10"></textarea>
                 </div>
               </form>
@@ -165,6 +169,10 @@
 
             <div class="settings-layout">
               <div class="settings-side">
+                <div class="settings-jump-menu">
+                  <button type="button" data-settings-target="apiSettingsSection">接口设置</button>
+                  <button type="button" data-settings-target="checkerTemplateSection">检测模板</button>
+                </div>
                 <div class="field">
                   <label>新预设名称</label>
                   <div class="inline-actions">
@@ -176,6 +184,8 @@
               </div>
 
               <div class="settings-main">
+                <section id="apiSettingsSection" class="settings-section">
+                <h3>接口设置</h3>
                 <div class="field">
                   <label>模型名称</label>
                   <input id="model" type="text" placeholder="模型名称" title="LMS 随便填写就可以使用当前加载的模型"/>
@@ -195,8 +205,66 @@
                 <div class="toolbar">
                   <button id="deletePresetBtn">删除当前预设</button>
                 </div>
+                </section>
+                <section>
+                <div class="field">
+                  <label>聊天续写方式</label>
+                  <select id="chatContinueMode">
+                    <option value="prompt">提示词续写（最稳）</option>
+                    <option value="direct">直接续写（合并显示）</option>
+                  </select>
+                </div>
+                
+                </section>
+                <section id="checkerTemplateSection" class="settings-section checker-template-manager">
+                  <h3>检测代码模板管理</h3>
+                  <div id="checkerTemplateList" class="checker-template-list"></div>
+                  <div class="inline-actions">
+                    <button type="button" id="addCheckerTemplateBtn">新增模板</button>
+                    <button type="button" id="saveCheckerTemplatesBtn">保存模板</button>
+                  </div>
+                </section>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-chat">
+          <div class="chat-layout">
+            <aside class="chat-sidebar">
+              <div class="panel-header">
+                <h2>聊天</h2>
+                <div class="toolbar">
+                  <button id="newChatFolderBtn" type="button">新分组</button>
+                  <button id="newChatBtn" type="button">新建</button>
+                </div>
+              </div>
+              <div id="chatList" class="chat-list"></div>
+            </aside>
+            <section class="chat-main">
+              <div id="chatEmpty" class="empty-state">选择或新建一个对话。</div>
+              <div id="chatEditor" class="chat-editor hidden">
+                <div class="panel-header sticky">
+                  <div class="title-input-wrap"><input id="chatTitle" type="text" placeholder="对话标题" /></div>
+                  <select id="chatPresetSelect" title="聊天模型预设"></select>
+                  <div class="toolbar">
+                    <button id="exportChatQuestionBtn" type="button">导出为问题</button>
+                    <button id="saveChatBtn" type="button">保存</button>
+                  </div>
+                </div>
+                <div id="chatMessages" class="chat-messages"></div>
+                <div class="chat-compose">
+                  <textarea id="chatInput" rows="3" placeholder="输入消息，支持 Markdown 和公式"></textarea>
+                  <div class="toolbar">
+                    <button id="insertChatBtn" type="button">Insert Ctrl+I</button>
+                    <button id="chatRoleToggleBtn" type="button">用户</button>
+                    <button id="chatThinkToggleBtn" type="button">Think</button>
+                    <input id="chatImageInput" type="file" accept="image/*" multiple />
+                    <button id="sendChatBtn" type="button">发送</button>
+                  </div>
+                </div>
+              </div>
+            </section>
           </div>
         </section>
 
@@ -291,6 +359,7 @@
           <button class="tab active" data-page="editor" title="题库编辑器 - 自定义测试题目"><span class="tab-icon">⧉</span><span class="tab-label">题库编辑器</span></button>
           <button class="tab" data-page="testing" title="测试 - 进行批量测试"><span class="tab-icon">➤</span><span class="tab-label">测试题目</span></button>
           <button class="tab" data-page="compare" title="对比 - 比较不同模型的测试结果"><span class="tab-icon">⇌</span><span class="tab-label">结果对比</span></button>
+          <button class="tab" data-page="chat" title="聊天 - 临时对话与导出题目"><span class="tab-icon">◈</span><span class="tab-label">聊天</span></button>
           <button class="tab" data-page="notes" title="笔记 - 查看说明或记录信息"><span class="tab-icon">🗒</span><span class="tab-label">笔记</span></button>
           <button class="tab" data-page="settings" title="设置 - 配置测试API"><span class="tab-icon">⛭</span><span class="tab-label">设置</span></button>
         </nav>
@@ -321,6 +390,7 @@
     <script src="/lib/languages/css.min.js"></script>
     <script src="/lib/languages/json.min.js"></script>
     <script src="/lib/languages/bash.min.js"></script>
+    <script src="/lib/mathjax-loader.js"></script>
     <script src="/message-renderer.js"></script>
     <script src="/app.js"></script>
   </body>

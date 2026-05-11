@@ -284,6 +284,10 @@ main {
 .compact-form { margin-bottom: 8px; }
 .inline-actions { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
 .settings-layout { display: grid; grid-template-columns: 280px minmax(0, 620px); gap: 10px; justify-content: start; }
+.settings-jump-menu { display: grid; gap: 6px; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.settings-jump-menu button { text-align: left; }
+.settings-section { padding: 8px 0 14px; border-bottom: 2px solid var(--line); scroll-margin-top: 78px; }
+.settings-section h3 { margin: 0 0 10px; padding: 5px 8px; background: #eef2ff; border-left: 4px solid var(--primary); }
 
 .preset-cards { display: grid; gap: 4px; }
 .preset-card {
@@ -342,7 +346,7 @@ main {
   top: 65px;
   z-index: 10;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 100px 90px 85px;
+  grid-template-columns: minmax(0, 1fr) 100px auto 85px;
   gap: 4px;
   padding: 0px;
 }
@@ -444,11 +448,18 @@ main {
 .score-stats-btn { padding: 2px 6px; font-size: 12px; white-space: nowrap; }
 
 .score-stats-popover {
-  position: absolute;
+  position: fixed;
   background: white;
   border: 1px solid grey;
   border-radius: 6px;
-  width: stretch;
+  width: min(520px, calc(100vw - 24px));
+  max-height: min(70vh, 620px);
+  overflow: auto;
+  left: 12px;
+  top: 92px;
+  z-index: 3200;
+  box-shadow: var(--shadow);
+  padding: 8px;
 }
 .score-stats-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .score-stats-content { display: grid; gap: 4px; }
@@ -462,6 +473,7 @@ main {
   margin: 0px;
 }
 .score-stats-overall { background: #eef2ff; border-color: #c7d2fe; }
+.score-stats-excluded { opacity: 0.55; background: #f3f4f6; }
 
 .result-box { border: 1px solid var(--line); border-radius: 6px; padding: 8px; background: #fff; }
 .status-line { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
@@ -589,6 +601,7 @@ blockquote { border-left: 5px solid grey; padding: 2px 5px; margin: 5px 20px; ba
 .modal-body-container pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
 .modal-toggle-btn { margin: 0 8px 8px 0; padding: 4px 8px; font-size: 12px; cursor: pointer; }
 .modal-full-img { display: block; max-width: 100%; max-height: calc(100vh - 100px); }
+.modal-webview { width: min(900px, 86vw); height: min(680px, 76vh); border: 1px solid var(--line); background: #fff; }
 
 /* 12. 笔记功能 */
 .notes-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 4px; }
@@ -615,6 +628,46 @@ blockquote { border-left: 5px solid grey; padding: 2px 5px; margin: 5px 20px; ba
 .sort-btn { padding: 2px 6px; font-size: 11px; }
 .sort-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 
+.checker-template-row { margin-bottom: 4px; }
+.checker-template-list { display: grid; gap: 8px; margin: 6px 0; }
+.checker-template-card { border: 1px solid var(--line); border-radius: 6px; padding: 6px; background: #fff; }
+.checker-template-card textarea { font-family: Consolas, monospace; }
+
+.math { font-family: Cambria Math, "Times New Roman", serif; background: #fffdf3; border: 1px solid #facc15; border-radius: 4px; padding: 0 4px; }
+.math-display { display: block; margin: 8px 0; padding: 8px; overflow: auto; text-align: center; }
+.math-inline { display: inline-block; }
+
+.chat-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 4px; }
+.chat-sidebar { position: sticky; top: 65px; max-height: calc(100vh - 70px); overflow: auto; border: 1px solid var(--line); background: var(--panel); padding: 4px; }
+.chat-main { border: 1px solid var(--line); background: var(--panel); min-height: calc(100vh - 70px); padding: 4px; }
+.chat-list { display: grid; gap: 3px; }
+.chat-folder-title { font-weight: 700; background: #e0f2fe; padding: 4px 6px; border-radius: 4px; }
+.chat-folder-title.drag-over { outline: 2px dashed var(--primary); background: #dbeafe; }
+.chat-list-item { padding: 6px; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; background: #fff; }
+.chat-list-item.active, .chat-list-item:hover { background: var(--primary-soft); border-color: var(--primary); }
+.chat-list-title { font-weight: 600; }
+.chat-list-meta { font-size: 12px; color: var(--muted); }
+.chat-editor { display: flex; flex-direction: column; min-height: calc(100vh - 80px); }
+.chat-messages { flex: 1; overflow: auto; padding: 8px; }
+.chat-compose { border-top: 1px solid var(--line); padding: 6px; background: #f8fafc; }
+.chat-compose .toolbar { justify-content: flex-end; align-items: center; gap: 8px; }
+.chat-compose button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.chat-image { max-width: 220px; display: block; border-radius: 8px; margin: 4px 0; }
+.chat-message { display: flex; flex-direction: column; }
+.chat-user { align-items: flex-end; }
+.chat-assistant { align-items: flex-start; }
+.chat-message .message-controls { max-width: 95%; }
+.chat-user .message-controls, .chat-user .chat-image-row { align-self: flex-end; }
+.chat-assistant .message-controls, .chat-assistant .chat-image-row { align-self: flex-start; }
+.chat-image-row { display: flex; flex-wrap: wrap; gap: 6px; max-width: 78%; }
+.chat-system-editor { border: 1px solid var(--line); border-radius: 8px; background: #fff7dd; padding: 8px; margin-bottom: 10px; }
+.chat-system-editor label { display: block; font-weight: 700; margin-bottom: 4px; }
+.chat-system-editor textarea { width: 100%; margin: 0; resize: vertical; }
+.chat-inline-editor { width: 100%; min-height: 130px; resize: vertical; font-family: inherit; }
+.chat-inline-actions { justify-content: flex-end; }
+.chat-message .message-bubble { cursor: text; }
+#chatPresetSelect { max-width: 180px; }
+
 /* 13. 结果比较页面 */
 .editor-set-select { display: flex; align-items: flex-start; flex-direction: column; }
 .compare-page-layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 2px; }
@@ -632,7 +685,9 @@ blockquote { border-left: 5px solid grey; padding: 2px 5px; margin: 5px 20px; ba
 .compare-board-row { border-top: 1px solid var(--line); }
 
 .compare-result-header, .compare-result-cell { min-width: 0; }
-.compare-result-header { top: 0; z-index: 5; background: #eef4ff; border: 1px solid var(--line); }
+.compare-result-header { top: 0; z-index: 5; background: #eef4ff; border: 1px solid var(--line); position: relative; padding-right: 78px; }
+.compare-score-detail-btn { position: absolute; right: 4px; top: 4px; padding: 1px 6px; font-size: 12px; margin-top: 0; }
+.compare-score-popover { position: absolute; z-index: 1700; width: min(460px, 90vw); background: #fff; border: 1px solid var(--line); box-shadow: var(--shadow); padding: 6px; }
 .compare-result-name { font-weight: 700; }
 .compare-result-meta, .compare-question-meta { font-size: 12px; color: var(--muted); }
 
@@ -642,6 +697,8 @@ blockquote { border-left: 5px solid grey; padding: 2px 5px; margin: 5px 20px; ba
 
 .compare-test-card { margin: 0; padding: 0; }
 .compare-test-card-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; position: sticky; padding: 0px 8px; top: 148px; border-bottom: 1px solid var(--line); }
+.compare-score-edit { display: flex; align-items: center; gap: 4px; }
+.compare-score-edit input { width: 54px; margin: 0; padding: 1px 3px; }
 .compare-test-card-body { padding: 6px; }
 
 .compare-reference-cell { border: 1px solid var(--line); border-radius: 8px; background: #fffdf3; padding: 5px; position: sticky; top: 150px; }
@@ -650,7 +707,8 @@ blockquote { border-left: 5px solid grey; padding: 2px 5px; margin: 5px 20px; ba
 
 #compareTree { flex: 1; min-height: 220px; max-height: calc(100vh - 290px); overflow: auto; }
 
-.compare-folder-header { grid-template-columns: auto auto 22px; position: sticky; top: 100px; z-index: 6; background: #add9ff; align-items: center; border: 1px solid var(--line); }
+.compare-folder-header { grid-template-columns: auto auto auto; position: sticky; top: 100px; z-index: 6; background: #add9ff; align-items: center; border: 1px solid var(--line); }
+.testing-folder-header.excluded, .compare-folder-header.excluded { opacity: 0.72; background: #e5e7eb; }
 
 .compare-result-checklist { min-height: 72px; max-height: 120px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; background: #fff; padding: 4px; }
 .compare-result-option { display: flex; border-bottom: 1px solid var(--line); gap: 8px; cursor: pointer; }
